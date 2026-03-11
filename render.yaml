@@ -30,7 +30,7 @@ services:
         generateValue: true
 
   # 2. Celery Worker (Background ML/Tasks)
-  - type: worker
+  - type: web
     name: memax-celery
     env: docker
     dockerfilePath: ./memax-ott/docker/celery.Dockerfile
