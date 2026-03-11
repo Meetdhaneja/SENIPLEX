@@ -47,11 +47,7 @@ services:
           name: memax-redis
           property: connectionString
       - key: SECRET_KEY
-        fromService:
-          type: web
-          name: memax-backend
-          property: envVar
-          envVarName: SECRET_KEY
+        generateValue: true
 
   # 3. Next.js Frontend
   - type: web
