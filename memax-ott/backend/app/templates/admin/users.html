@@ -1,0 +1,32 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Users - MEMAX OTT Admin{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>👥 User Management</h1>
+</div>
+
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 2px solid #eee;">
+                <th style="padding: 10px;">ID</th>
+                <th style="padding: 10px;">Username</th>
+                <th style="padding: 10px;">Email</th>
+                <th style="padding: 10px;">Admin</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for u in users %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">{{ u.id }}</td>
+                <td style="padding: 10px;">{{ u.username }}</td>
+                <td style="padding: 10px;">{{ u.email }}</td>
+                <td style="padding: 10px;">{{ "✅" if u.is_admin else "❌" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

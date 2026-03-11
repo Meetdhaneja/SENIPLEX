@@ -1,0 +1,82 @@
+version: "1"
+
+services:
+  # 1. FastAPI Backend
+  - type: web
+    name: memax-backend
+    env: docker
+    dockerfilePath: ./memax-ott/docker/backend.Dockerfile
+    dockerContext: ./memax-ott/backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: memax-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: memax-redis
+          property: connectionString
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@memax.com
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD
+        generateValue: true
+
+  # 2. Celery Worker (Background ML/Tasks)
+  - type: worker
+    name: memax-celery
+    env: docker
+    dockerfilePath: ./memax-ott/docker/celery.Dockerfile
+    dockerContext: ./memax-ott/backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: memax-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: memax-redis
+          property: connectionString
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: memax-backend
+          property: envVar
+          envVarName: SECRET_KEY
+
+  # 3. Next.js Frontend
+  - type: web
+    name: memax-frontend
+    env: docker
+    dockerfilePath: ./memax-ott/docker/frontend.Dockerfile
+    dockerContext: ./memax-ott/frontend
+    plan: free
+    envVars:
+      # Render dynamically replaces this with the backend's provided host
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: memax-backend
+          property: host
+
+  # 4. Redis Cache
+  - type: redis
+    name: memax-redis
+    plan: free
+    ipAllowList: [] # Blank means internal access only (secure)
+
+databases:
+  # 5. PostgreSQL Database
+  - name: memax-postgres
+    databaseName: memax_db
+    user: memax_user
+    plan: free

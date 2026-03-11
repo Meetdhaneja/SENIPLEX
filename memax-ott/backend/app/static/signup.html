@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - MEMAX OTT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body
+    style="display: flex; align-items: center; justify-content: center; background: url('https://images.unsplash.com/photo-1542393545-10f5cde2c81d?q=80&w=2070') center/cover;">
+
+    <div class="auth-container" style="
+        background: rgba(15,15,15,0.85);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 400px;
+        border: 1px solid var(--primary);
+        box-shadow: 0 0 30px rgba(217, 70, 239, 0.3);
+    ">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #fff;">JOIN THE NETWORK</h2>
+
+        <form id="signup-form">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem;">Username</label>
+                <input type="text" id="username" required placeholder="CyberRunner2077" style="
+                    width: 100%;
+                    padding: 0.8rem;
+                    background: #1f2937;
+                    border: 1px solid #374151;
+                    color: white;
+                    border-radius: 4px;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem;">Email</label>
+                <input type="email" id="email" required placeholder="name@example.com" style="
+                    width: 100%;
+                    padding: 0.8rem;
+                    background: #1f2937;
+                    border: 1px solid #374151;
+                    color: white;
+                    border-radius: 4px;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem;">Password</label>
+                <input type="password" id="password" required placeholder="••••••••" style="
+                    width: 100%;
+                    padding: 0.8rem;
+                    background: #1f2937;
+                    border: 1px solid #374151;
+                    color: white;
+                    border-radius: 4px;
+                ">
+            </div>
+
+            <div id="error-msg" style="color: #ef4444; font-size: 0.9rem; margin-bottom: 1rem; display: none;"></div>
+            <div id="success-msg" style="color: #4ade80; font-size: 0.9rem; margin-bottom: 1rem; display: none;">
+                Account created! Redirecting to login...
+            </div>
+
+            <button type="submit" class="btn btn-primary"
+                style="width: 100%; background: linear-gradient(to right, var(--primary), var(--accent));">INITIATE</button>
+        </form>
+
+        <p style="text-align: center; margin-top: 1.5rem; color: #9ca3af; font-size: 0.9rem;">
+            Already authenticated? <a href="login.html" style="color: var(--accent);">Sign In</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-msg');
+            const successMsg = document.getElementById('success-msg');
+
+            errorMsg.style.display = 'none';
+            successMsg.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password, full_name: username })
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || 'Signup failed');
+                }
+
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 1500);
+
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+
+</html>

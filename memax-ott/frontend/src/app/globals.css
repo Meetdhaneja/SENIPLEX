@@ -1,0 +1,69 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 250, 250, 250;
+  --background-start-rgb: 15, 15, 15;
+  --background-end-rgb: 0, 0, 0;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: #010101; /* Darker back */
+  min-height: 100vh;
+}
+
+@layer utilities {
+  .animate-fade-in {
+    animation: fadeIn 1.2s ease-out forwards;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 1s ease-out forwards;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Custom scrollbar - Cyberpunk Style */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050505;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #06b6d4; /* Cyan / Cyberpunk Theme */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #22d3ee;
+}
+
+::selection {
+  background: #06b6d4;
+  color: #fff;
+}

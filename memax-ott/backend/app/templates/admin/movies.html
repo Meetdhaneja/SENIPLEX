@@ -1,0 +1,36 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Movies - MEMAX OTT Admin{% endblock %}
+
+{% block content %}
+<div class="header" style="display: flex; justify-content: space-between; align-items: center;">
+    <h1>🎥 Movie Management</h1>
+    <a href="/admin/movies/add"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+        + Upload New Movie
+    </a>
+</div>
+
+<div class="card">
+    <table style="width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr style="text-align: left; border-bottom: 2px solid #eee;">
+                <th style="padding: 10px;">ID</th>
+                <th style="padding: 10px;">Title</th>
+                <th style="padding: 10px;">Rating</th>
+                <th style="padding: 10px;">Views</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in movies %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 10px;">{{ m.id }}</td>
+                <td style="padding: 10px;">{{ m.title }}</td>
+                <td style="padding: 10px;">⭐ {{ m.rating or 'N/A' }}</td>
+                <td style="padding: 10px;">👁️ {{ m.view_count or 0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

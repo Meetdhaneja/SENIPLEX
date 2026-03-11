@@ -1,0 +1,127 @@
+================================================================================
+                    📁 WHERE TO PUT YOUR DATASET FILE
+================================================================================
+
+YOUR FILE LOCATION:
+-------------------
+
+C:\Users\Dell\OneDrive\Desktop\SENIPLEX\memax-ott\backend\app\data\raw\
+
+                                    👆
+                            PUT YOUR FILE HERE!
+
+
+FOLDER STRUCTURE:
+-----------------
+
+memax-ott/
+│
+├── backend/
+│   ├── app/
+│   │   ├── data/
+│   │   │   ├── raw/                    ← 📁 PUT YOUR DATASET HERE
+│   │   │   │   ├── netflix.csv         ← ✅ Your CSV file
+│   │   │   │   ├── movies.csv          ← ✅ Or here
+│   │   │   │   └── your_data.csv       ← ✅ Or here
+│   │   │   │
+│   │   │   └── loaders/
+│   │   │       └── load_to_db.py       ← 🔧 Import script (already exists)
+│   │   │
+│   │   └── main.py
+│   │
+│   ├── import_dataset.py               ← 🚀 Run this to import
+│   └── requirements.txt
+│
+├── IMPORT_DATA.bat                     ← 🎯 DOUBLE-CLICK THIS (easiest way)
+└── START.bat
+
+
+HOW TO IMPORT:
+--------------
+
+Step 1: Copy your dataset file to:
+        backend/app/data/raw/
+
+Step 2: Double-click:
+        IMPORT_DATA.bat
+
+        OR run manually:
+        cd backend
+        venv\Scripts\activate
+        python import_dataset.py
+
+
+SUPPORTED FILE FORMATS:
+-----------------------
+
+✅ CSV files (.csv)
+   - netflix.csv
+   - movies.csv
+   - dataset.csv
+   - any_name.csv
+
+✅ JSON files (.json)
+   - movies.json
+   - dataset.json
+   - any_name.json
+
+
+EXAMPLE CSV FORMAT:
+-------------------
+
+title,type,description,release_year,duration,listed_in,country,rating
+"Inception","Movie","Dream heist",2010,"148 min","Sci-Fi, Thriller","USA",8.8
+"The Matrix","Movie","Virtual reality",1999,"136 min","Sci-Fi, Action","USA",8.7
+
+
+MINIMUM REQUIRED:
+-----------------
+
+Just need ONE column:
+- title (movie/show name)
+
+Everything else is optional!
+
+
+QUICK COMMANDS:
+---------------
+
+# Import dataset (automatic)
+IMPORT_DATA.bat
+
+# Import dataset (manual)
+cd backend
+venv\Scripts\activate
+python import_dataset.py
+
+# Import specific file
+cd backend
+venv\Scripts\activate
+python import_dataset.py app/data/raw/YOUR_FILE.csv
+
+
+AFTER IMPORT:
+-------------
+
+1. Check import count:
+   psql -U memax_user -d memax_db -c "SELECT COUNT(*) FROM movies"
+
+2. Start application:
+   START.bat
+
+3. Visit:
+   http://localhost:3000
+
+
+NEED HELP?
+----------
+
+1. Make sure file is in: backend/app/data/raw/
+2. Make sure PostgreSQL is running
+3. Make sure database is initialized: python -m app.db.init_db
+4. Check file format matches examples above
+
+
+================================================================================
+                    🎬 READY TO IMPORT YOUR MOVIES!
+================================================================================

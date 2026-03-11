@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Database
+*.db
+*.sqlite3
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+
+# AI Models
+*.index
+*.pkl
+*.h5
+
+# Data
+app/data/raw/*
+!app/data/raw/.gitkeep
+app/data/processed/*
+!app/data/processed/.gitkeep

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEMAX OTT - Cyberpunk Streaming</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Embedding crucial styles inline just in case css fails loading */
+        body {
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+            background: #0f0f0f;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/" class="logo">MEMAX <span class="accent">OTT</span></a>
+
+            <!-- Search Bar -->
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search titles, genres...">
+                <button id="search-btn"><i class="fas fa-search"></i></button>
+            </div>
+
+            <div class="nav-links">
+                <a href="index.html" class="active">Home</a>
+                <a href="#" onclick="scrollToSection('new-releases-row')">New & Popular</a>
+                <a href="#" onclick="scrollToSection('my-list-row')">My List</a>
+            </div>
+            <div class="nav-actions">
+                <div id="user-menu" style="display: none; align-items: center; gap: 1rem;">
+                    <span id="user-greeting">Hello, User</span>
+                    <button class="btn btn-secondary" id="logout-btn" style="padding: 0.5rem 1rem;">Sign Out</button>
+                </div>
+                <a href="login.html" class="btn btn-secondary" id="auth-btn">Sign In</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">CYBERPUNK: <span class="neon-text">EDGERUNNERS</span></h1>
+            <div class="hero-meta">
+                <span class="match-score">98% Match</span>
+                <span class="year">2023</span>
+                <span class="age">18+</span>
+                <span class="seasons">1 Season</span>
+            </div>
+            <p class="hero-desc">
+                In a dystopia riddled with corruption and cybernetic implants, a talented but reckless street kid
+                strives to become a mercenary outlaw — an edgerunner.
+            </p>
+            <div class="hero-buttons">
+                <button class="btn btn-primary" onclick="openVideoModal('Cyberpunk: Edgerunners')"><i
+                        class="fas fa-play"></i> Play</button>
+                <button class="btn btn-secondary"><i class="fas fa-info-circle"></i> More Info</button>
+            </div>
+        </div>
+        <div class="hero-overlay"></div>
+    </header>
+
+    <!-- Search Results (Hidden by default) -->
+    <section class="movie-section" id="search-section" style="display: none;">
+        <h2 class="section-title">Search Results</h2>
+        <div class="movie-row" id="search-results-row"></div>
+    </section>
+
+    <!-- Content Rows -->
+    <main class="content">
+        <!-- Personalized Recommendations (Protected) -->
+        <section class="movie-section" id="recommended-section" style="display: none;">
+            <h2 class="section-title">Recommended For You</h2>
+            <div class="movie-row" id="recommended-row"></div>
+        </section>
+
+        <!-- My List (Protected) -->
+        <section class="movie-section" id="mylist-section" style="display: none;">
+            <h2 class="section-title">My List</h2>
+            <div class="movie-row" id="my-list-row"></div>
+        </section>
+        <!-- Trending Section -->
+        <section class="movie-section">
+            <h2 class="section-title">Trending Now</h2>
+            <div class="movie-row" id="trending-row">
+                <!-- Javascript will populate this -->
+                <div class="loading-skeleton"></div>
+                <div class="loading-skeleton"></div>
+                <div class="loading-skeleton"></div>
+                <div class="loading-skeleton"></div>
+            </div>
+        </section>
+
+        <!-- New Releases -->
+        <section class="movie-section">
+            <h2 class="section-title">New Releases</h2>
+            <div class="movie-row" id="new-releases-row">
+                <!-- Javascript will populate this -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Video Modal -->
+    <div id="video-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeVideoModal()">&times;</span>
+            <div class="video-container">
+                <div class="fake-player">
+                    <i class="fas fa-play-circle" style="font-size: 5rem; color: var(--primary);"></i>
+                    <h2 id="video-title" style="margin-top: 2rem;">Now Playing</h2>
+                    <p>Streaming functionality simluated...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Styles -->
+    <style>
+        /* Search Bar */
+        .search-container {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 0.3rem 0.8rem;
+            margin: 0 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .search-container input {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 0.3rem;
+            outline: none;
+            width: 200px;
+        }
+
+        .search-container button {
+            background: transparent;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+        }
+
+        .search-container button:hover {
+            color: white;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        .modal-content {
+            margin: 5% auto;
+            width: 80%;
+            max-width: 900px;
+            background: #111;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--primary);
+            position: relative;
+        }
+
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close-modal:hover {
+            color: white;
+        }
+
+        .video-container {
+            aspect-ratio: 16/9;
+            background: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fake-player {
+            text-align: center;
+        }
+
+        /* Interactive Buttons */
+        .btn-icon {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-icon:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+
+        .btn-icon.active {
+            color: var(--neon-pink);
+            border-color: var(--neon-pink);
+        }
+    </style>
+
+    <!-- Scripts -->
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>

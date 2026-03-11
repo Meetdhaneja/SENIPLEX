@@ -1,0 +1,52 @@
+{% extends "admin/base.html" %}
+
+{% block title %}AI Models - MEMAX OTT Admin{% endblock %}
+
+{% block content %}
+<div class="header">
+    <h1>🤖 AI Models Status</h1>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2>FAISS Recommender</h2>
+        <form action="/admin/models/rebuild" method="POST">
+            <button type="submit"
+                style="background: #764ba2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                🔄 Rebuild FAISS Index
+            </button>
+        </form>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
+            <h3>Index Status</h3>
+            <p style="font-size: 1.2em; margin-top: 10px;">
+                {% if index_exists %}
+                <span style="color: #2ecc71;">✅ Ready</span>
+                {% else %}
+                <span style="color: #e74c3c;">❌ Not Found</span>
+                {% endif %}
+            </p>
+        </div>
+        <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
+            <h3>Last Built</h3>
+            <p style="font-size: 1.1em; margin-top: 10px; color: #666;">{{ index_time }}</p>
+        </div>
+        <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
+            <h3>Stored Embeddings</h3>
+            <p style="font-size: 1.1em; margin-top: 10px; color: #333;"><strong>{{ embedding_count }}</strong> movies
+            </p>
+        </div>
+        <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
+            <h3>Model Dimension</h3>
+            <p style="font-size: 1.1em; margin-top: 10px; color: #333;">384 (MiniLM-L6-v2)</p>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📈 Analytics & Insights</h2>
+    <p>AI preference analysis and coverage reports coming soon...</p>
+</div>
+{% endblock %}

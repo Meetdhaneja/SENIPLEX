@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - MEMAX OTT</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body
+    style="display: flex; align-items: center; justify-content: center; background: url('https://images.unsplash.com/photo-1605810230434-7631ac76ec81?q=80&w=2070') center/cover;">
+
+    <div class="auth-container" style="
+        background: rgba(15,15,15,0.8);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 10px;
+        width: 100%;
+        max-width: 400px;
+        border: 1px solid var(--primary);
+        box-shadow: 0 0 30px rgba(124,58,237,0.3);
+    ">
+        <h2 style="text-align: center; margin-bottom: 2rem; color: #fff;">EDGERUNNER LOGIN</h2>
+
+        <form id="login-form">
+            <div style="margin-bottom: 1rem;">
+                <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem;">Email / Username</label>
+                <input type="text" id="username" required style="
+                    width: 100%;
+                    padding: 0.8rem;
+                    background: #1f2937;
+                    border: 1px solid #374151;
+                    color: white;
+                    border-radius: 4px;
+                ">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; color: #9ca3af; margin-bottom: 0.5rem;">Password</label>
+                <input type="password" id="password" required style="
+                    width: 100%;
+                    padding: 0.8rem;
+                    background: #1f2937;
+                    border: 1px solid #374151;
+                    color: white;
+                    border-radius: 4px;
+                ">
+            </div>
+
+            <div id="error-msg" style="color: #ef4444; font-size: 0.9rem; margin-bottom: 1rem; display: none;"></div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">JACK IN</button>
+        </form>
+
+        <p style="text-align: center; margin-top: 1.5rem; color: #9ca3af; font-size: 0.9rem;">
+            New to the network? <a href="signup.html" style="color: var(--accent);">Sign Up</a>
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('error-msg');
+
+            errorMsg.style.display = 'none';
+
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    const data = await res.json();
+                    throw new Error(data.detail || 'Login failed');
+                }
+
+                const data = await res.json();
+                localStorage.setItem('token', data.access_token);
+                window.location.href = 'index.html';
+
+            } catch (err) {
+                errorMsg.textContent = err.message;
+                errorMsg.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+
+</html>

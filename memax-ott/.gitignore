@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+*.egg-info/
+
+# Database
+*.db
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# AI Models & Data
+*.index
+*.pkl
+*.h5
+*.pt
+*.pth
+app/data/raw/*
+!app/data/raw/.gitkeep
+app/data/processed/*
+!app/data/processed/.gitkeep
+
+# Docker
+.dockerignore
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Misc
+*.bak
+*.tmp
+.DS_Store
+
+# Uploaded files (never commit actual movie files)
+uploads/
+backend/uploads/
+
+# Keep .env.production.example but NOT the actual production env
+.env.production
+# Allow example file
+!.env.production.example
