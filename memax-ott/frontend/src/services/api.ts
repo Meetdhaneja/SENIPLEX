@@ -1,12 +1,15 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-  // When running Server-Side next.js (SSR), it cannot use relative URLs
+  // Use the Render backend URL injected by NEXT_PUBLIC_API_URL, or fallback to relative/local
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  
   if (typeof window === 'undefined') {
     return 'http://backend:8000/api';
   }
-  // When running in the browser (client-side), use a relative URL. 
-  // This allows it to adapt to whatever IP the user is accessing from!
+  
   return '/api';
 };
 
