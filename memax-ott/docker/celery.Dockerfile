@@ -28,4 +28,6 @@ RUN mkdir -p uploads/movies && chmod -R 777 uploads/
 
 ENV PATH=/root/.local/bin:$PATH
 
-CMD ["celery", "-A", "app.core.celery_app", "worker", "--loglevel=info", "-P", "eventlet", "-c", "2"]
+# Render Web Service Hack: Run a dummy HTTP server on $PORT to pass Render's port scan timeout,
+# while running Celery in the foreground.
+CMD ["sh", "-c", "python -m http.server ${PORT:-10000} & exec celery -A app.core.celery_app worker --loglevel=info -P eventlet -c 2"]
