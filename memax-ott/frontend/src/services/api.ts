@@ -1,15 +1,17 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-  // Use the Render backend URL injected by NEXT_PUBLIC_API_URL, or fallback to relative/local
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL;
-  }
-  
   if (typeof window === 'undefined') {
-    return 'http://backend:8000/api';
+    // SSR / Server Side
+    let url = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      // If Render injected internal service name instead of full hostname
+      url = url.includes('.') ? `https://${url}` : `https://${url}.onrender.com`;
+    }
+    return url.endsWith('/api') ? url : `${url}/api`;
   }
   
+  // Client Browser: ALWAYS use relative proxy
   return '/api';
 };
 
