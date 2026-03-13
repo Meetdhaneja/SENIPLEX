@@ -1,6 +1,6 @@
 """Movie service"""
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, desc
+from sqlalchemy import or_, desc, func
 from typing import List, Tuple, Optional
 from app.models.movie import Movie
 from app.models.genre import Genre
@@ -27,7 +27,7 @@ def get_movies(
         query = query.filter(Movie.content_type == content_type)
     
     total = query.count()
-    movies = query.offset((page - 1) * page_size).limit(page_size).all()
+    movies = query.order_by(desc(Movie.release_year)).offset((page - 1) * page_size).limit(page_size).all()
     
     return movies, total
 
@@ -101,8 +101,8 @@ def search_movies(db: Session, query: str, limit: int = 20) -> List[Movie]:
 
 
 def get_featured_movies(db: Session, limit: int = 10) -> List[Movie]:
-    """Get featured movies"""
-    return db.query(Movie).filter(Movie.is_featured == True).limit(limit).all()
+    """Get featured movies with slight randomization"""
+    return db.query(Movie).filter(Movie.is_featured == True).order_by(func.random()).limit(limit).all()
 
 
 def get_trending_movies(db: Session, limit: int = 10) -> List[Movie]:
