@@ -72,27 +72,32 @@ export default function Home() {
     fetchRecs();
   }, [user]);
 
-  // Handle Hero Rotation every 4 seconds
+  // Handle Hero Rotation every 4 seconds - cycles through heroMovies
+  const heroMovies = user && recommendations.length > 0
+    ? recommendations.slice(0, 5)
+    : trendingMovies.slice(0, 5);
+
   useEffect(() => {
-    if (trendingMovies.length > 0) {
+    if (heroMovies.length > 0) {
       if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
       
       heroIntervalRef.current = setInterval(() => {
-        setHeroIndex((prev) => (prev + 1) % Math.min(trendingMovies.length, 5));
+        setHeroIndex((prev) => (prev + 1) % heroMovies.length);
       }, 4000);
     }
     return () => {
       if (heroIntervalRef.current) clearInterval(heroIntervalRef.current);
     };
-  }, [trendingMovies]);
+  }, [heroMovies.length]);
+
 
   return (
     <div className="min-h-screen bg-dark-900 text-white overflow-x-hidden">
       <Navbar />
 
-      {/* Hero Section - Automatically Cycles */}
+      {/* Hero Section - Cycles through AI Recommended or Trending */}
       <Hero 
-        movie={trendingMovies.length > 0 ? trendingMovies[heroIndex] : null} 
+        movie={heroMovies.length > 0 ? heroMovies[heroIndex] : null} 
       />
 
       {/* Main Content */}

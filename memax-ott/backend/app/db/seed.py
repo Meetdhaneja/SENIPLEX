@@ -8,6 +8,7 @@ from app.models.movie import Movie
 from app.core.security import get_password_hash
 from app.core.config import settings
 from loguru import logger
+from app.db.seed_from_csv import seed_from_csv
 
 
 def seed_admin_user(db: Session):
@@ -369,7 +370,8 @@ def seed_database():
         seed_admin_user(db)
         seed_genres(db)
         seed_countries(db)
-        seed_movies(db)
+        # Load from Netflix CSV dataset (up to 500 movies)
+        seed_from_csv(db, max_rows=500)
         logger.info("Database seeding completed")
     except Exception as e:
         logger.error(f"Error seeding database: {str(e)}")
