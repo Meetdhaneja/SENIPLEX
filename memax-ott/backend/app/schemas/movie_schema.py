@@ -37,6 +37,7 @@ class MovieBase(BaseModel):
     thumbnail_url: Optional[str] = None
     video_url: Optional[str] = None
     trailer_url: Optional[str] = None
+    age_rating: Optional[str] = None
 
 
 class MovieCreate(MovieBase):

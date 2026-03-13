@@ -370,8 +370,10 @@ def seed_database():
         seed_admin_user(db)
         seed_genres(db)
         seed_countries(db)
+        # seed_movies(db) # Removing hardcoded samples, using full CSV instead
+        
         # Load ALL movies from Netflix CSV dataset (8800+ movies)
-        seed_from_csv(db, max_rows=8800)
+        seed_from_csv(db, max_rows=9000)
         logger.info("Database seeding completed")
     except Exception as e:
         logger.error(f"Error seeding database: {str(e)}")
