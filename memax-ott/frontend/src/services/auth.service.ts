@@ -19,7 +19,7 @@ export const authService = {
     formData.append("password", data.password);
 
     // URL relative to baseURL (http://localhost:8000/api)
-    const response = await api.post("/auth/login", formData, {
+    const response = await api.post("auth/login", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
@@ -32,12 +32,12 @@ export const authService = {
   },
 
   async signup(data: SignupData) {
-    const response = await api.post("/auth/signup", data);
+    const response = await api.post("auth/signup", data);
     return response.data;
   },
 
   async getCurrentUser() {
-    const response = await api.get("/auth/me");
+    const response = await api.get("auth/me");
     return response.data;
   },
 

@@ -18,7 +18,7 @@ from app.routes.auth import get_current_user
 router = APIRouter()
 
 
-@router.post("/", response_model=InteractionResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=InteractionResponse, status_code=status.HTTP_201_CREATED)
 async def record_interaction(
     interaction_data: InteractionCreate,
     db: Session = Depends(get_db),
@@ -28,7 +28,7 @@ async def record_interaction(
     return create_interaction(db, current_user.id, interaction_data)
 
 
-@router.get("/", response_model=List[InteractionResponse])
+@router.get("", response_model=List[InteractionResponse])
 async def list_interactions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)

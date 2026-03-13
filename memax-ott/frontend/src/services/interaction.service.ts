@@ -2,19 +2,19 @@ import api from "./api";
 
 export const interactionService = {
     async likeMovie(movieId: number) {
-        const response = await api.post(`/likes`, null, {
+        const response = await api.post(`likes`, null, {
             params: { movie_id: movieId }
         });
         return response.data;
     },
 
     async unlikeMovie(movieId: number) {
-        const response = await api.delete(`/likes/${movieId}`);
+        const response = await api.delete(`likes/${movieId}`);
         return response.data;
     },
 
     async addToWatchLater(movieId: number) {
-        const response = await api.post("/interactions/", {
+        const response = await api.post("interactions", {
             movie_id: movieId,
             interaction_type: "watch_later",
             interaction_value: 1.0,
@@ -23,7 +23,7 @@ export const interactionService = {
     },
 
     async dislikeMovie(movieId: number) {
-        const response = await api.post("/interactions/", {
+        const response = await api.post("interactions", {
             movie_id: movieId,
             interaction_type: "dislike",
             interaction_value: 1.0,
@@ -32,12 +32,12 @@ export const interactionService = {
     },
 
     async getMyLikes() {
-        const response = await api.get("/likes");
+        const response = await api.get("likes");
         return response.data;
     },
 
     async recordView(movieId: number) {
-        const response = await api.post("/interactions/", {
+        const response = await api.post("interactions", {
             movie_id: movieId,
             interaction_type: "view",
             interaction_value: 1.0
@@ -46,7 +46,7 @@ export const interactionService = {
     },
 
     async recordSearchClick(movieId: number) {
-        const response = await api.post("/interactions/", {
+        const response = await api.post("interactions", {
             movie_id: movieId,
             interaction_type: "search_click",
             interaction_value: 1.2
@@ -67,7 +67,7 @@ export const interactionService = {
                 : percentWatched >= 0.9
                 ? "complete"
                 : "partial_view";
-        const response = await api.post("/interactions/", {
+        const response = await api.post("interactions", {
             movie_id: movieId,
             interaction_type: interactionType,
             interaction_value: interactionValue,
