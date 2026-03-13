@@ -55,3 +55,8 @@ httpx==0.26.0
 
 # Rate Limiting
 slowapi==0.1.9
+
+# Movie Posters & Scraping
+movieposters==0.0.7
+beautifulsoup4==4.14.3
+lxml==4.9.4
