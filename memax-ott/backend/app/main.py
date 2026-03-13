@@ -88,12 +88,11 @@ async def startup_event():
     except Exception as e:
         logger.error(f"Database initialization failed: {str(e)}")
     
-    # Seed database
-    try:
-        from app.db.seed import seed_database
-        seed_database()
-    except Exception as e:
-        logger.warning(f"Database seeding skipped: {str(e)}")
+    # Seed database in background to avoid Render startup timeout
+    import threading
+    from app.db.seed import seed_database
+    threading.Thread(target=seed_database).start()
+    logger.info("Database seeding started in background")
 
 
 @app.on_event("shutdown")
@@ -101,6 +100,20 @@ async def shutdown_event():
     """Cleanup on shutdown"""
     logger.info("Shutting down application")
 
+
+@app.get("/api/health/db-status")
+async def db_status():
+    """Check database status and movie count"""
+    from app.db.session import SessionLocal
+    from app.models.movie import Movie
+    db = SessionLocal()
+    try:
+        count = db.query(Movie).count()
+        return {"movie_count": count, "status": "ok" if count > 0 else "seeding"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 @app.get("/")
 async def root():
