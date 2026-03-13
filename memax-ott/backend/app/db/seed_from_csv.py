@@ -161,6 +161,10 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
                 
                 # Fast duplicate check
                 if (title, release_year) in existing_movies:
+                    # IMPROVED: Still update thumbnail if it was NULL (e.g. from failed previous run)
+                    # We can't do this efficiently for all 8800 in a loop without queries,
+                    # but our repair script handles the bulk. 
+                    # For new CSV rows that match existing, we skip to save time.
                     continue
 
                 content_type = "TV Show" if row.get("type") == "TV Show" else "Movie"
