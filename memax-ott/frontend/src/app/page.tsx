@@ -17,6 +17,7 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [recsLoading, setRecsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { user } = useAuthStore();
 
   // Hero Carousel State
@@ -27,6 +28,7 @@ export default function Home() {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError(null);
         const [featured, trending, movies] = await Promise.all([
           movieService.getFeaturedMovies(10),
           movieService.getTrendingMovies(12),
@@ -36,8 +38,9 @@ export default function Home() {
         setFeaturedMovies(featured);
         setTrendingMovies(trending);
         setNewReleases(movies.movies);
-      } catch (error) {
-        console.error("Failed to fetch movies", error);
+      } catch (err: any) {
+        console.error("Failed to fetch movies", err);
+        setError(err.message || "Failed to connect to the movie server. Please check if the backend is running.");
       } finally {
         setLoading(false);
       }
@@ -180,7 +183,24 @@ export default function Home() {
               />
             )}
 
-            {!loading &&
+            {error ? (
+              <div className="text-center py-20 px-8">
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-6 rounded-lg max-w-2xl mx-auto">
+                  <h3 className="text-xl font-bold mb-2">Connection Issue</h3>
+                  <p className="text-sm opacity-80 mb-4">{error}</p>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="bg-white text-black px-6 py-2 rounded font-bold hover:bg-gray-200"
+                  >
+                    Retry Connection
+                  </button>
+                  <p className="text-xs mt-6 opacity-60">
+                    If this is your first deploy on Render, the backend might still be starting up or the Database URL might be missing.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              !loading &&
               trendingMovies.length === 0 &&
               newReleases.length === 0 && (
                 <div className="text-center py-20 text-gray-500">
@@ -190,8 +210,14 @@ export default function Home() {
                   <p className="text-sm mt-2">
                     Please refresh in a moment if you don&apos;t see content yet.
                   </p>
+                  <div className="mt-8 flex justify-center gap-4">
+                    <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce" />
+                    <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                    <div className="w-2 h-2 bg-primary-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+                  </div>
                 </div>
-              )}
+              )
+            )}
           </>
         )}
       </div>

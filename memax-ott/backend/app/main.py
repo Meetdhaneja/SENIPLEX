@@ -110,17 +110,34 @@ async def shutdown_event():
 
 @app.get("/api/health/db-status")
 async def db_status():
-    """Check database status and movie count"""
+    """Check database status and movie count with detailed error reporting"""
     from app.db.session import SessionLocal
     from app.models.movie import Movie
-    db = SessionLocal()
     try:
-        count = db.query(Movie).count()
-        return {"movie_count": count, "status": "ok" if count > 0 else "seeding"}
+        db = SessionLocal()
+        try:
+            count = db.query(Movie).count()
+            return {
+                "movie_count": count, 
+                "status": "ok" if count > 0 else "seeding",
+                "database_connected": True
+            }
+        except Exception as e:
+            logger.error(f"DB Status query failed: {str(e)}")
+            return {
+                "status": "error", 
+                "message": f"Query failed: {str(e)}",
+                "database_connected": True
+            }
+        finally:
+            db.close()
     except Exception as e:
-        return {"status": "error", "message": str(e)}
-    finally:
-        db.close()
+        logger.error(f"DB Status connection failed: {str(e)}")
+        return {
+            "status": "error", 
+            "message": f"Connection failed: {str(e)}",
+            "database_connected": False
+        }
 
 @app.get("/")
 async def root():
