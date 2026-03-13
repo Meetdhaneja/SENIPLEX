@@ -81,18 +81,25 @@ async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     
-    # Initialize database
-    try:
-        init_db()
-        logger.info("Database initialized successfully")
-    except Exception as e:
-        logger.error(f"Database initialization failed: {str(e)}")
-    
-    # Seed database in background to avoid Render startup timeout
+    # Run DB Initialization and Seeding in background
+    # This ensures the server starts listening on the port IMMEDIATELY
     import threading
     from app.db.seed import seed_database
-    threading.Thread(target=seed_database).start()
-    logger.info("Database seeding started in background")
+    
+    def background_startup():
+        try:
+            # Initialize database (schema checks/migrations)
+            init_db()
+            logger.info("Database initialized successfully in background")
+            
+            # Seed database
+            seed_database()
+            logger.info("Database seeding completed in background")
+        except Exception as e:
+            logger.error(f"Background startup task failed: {str(e)}")
+
+    threading.Thread(target=background_startup, daemon=True).start()
+    logger.info("Database initialization and seeding started in background thread")
 
 
 @app.on_event("shutdown")
