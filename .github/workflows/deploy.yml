@@ -8,7 +8,10 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Repositories with uppercase letters like 'Meetdhaneja/SENIPLEX' cause Docker tag errors.
+  # We will manually lowercase this or use the repository owner/name in lowercase.
+  IMAGE_NAME_BACKEND: ghcr.io/meetdhaneja/seniplex/backend
+  IMAGE_NAME_FRONTEND: ghcr.io/meetdhaneja/seniplex/frontend
 
 jobs:
   # ─── Job 1: Run Tests ───────────────────────────────────────────────
@@ -87,7 +90,7 @@ jobs:
           file: ./memax-ott/docker/backend.Dockerfile
           target: production
           push: true
-          tags: ghcr.io/${{ github.repository }}/backend:latest
+          tags: ${{ env.IMAGE_NAME_BACKEND }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -98,7 +101,7 @@ jobs:
           file: ./memax-ott/docker/frontend.Dockerfile
           target: production
           push: true
-          tags: ghcr.io/${{ github.repository }}/frontend:latest
+          tags: ${{ env.IMAGE_NAME_FRONTEND }}:latest
           build-args: |
             NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
           cache-from: type=gha
@@ -129,8 +132,8 @@ jobs:
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Pull latest images and restart
-            docker pull ghcr.io/${{ github.repository }}/backend:latest
-            docker pull ghcr.io/${{ github.repository }}/frontend:latest
+            docker pull ${{ env.IMAGE_NAME_BACKEND }}:latest
+            docker pull ${{ env.IMAGE_NAME_FRONTEND }}:latest
 
             cd memax-ott/docker
             docker compose down --remove-orphans
