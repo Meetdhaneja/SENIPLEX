@@ -5,7 +5,7 @@ from app.core.config import settings
 from typing import Generator
 
 engine = create_engine(
-    settings.DATABASE_URL,
+    settings.sync_database_url,
     echo=settings.DB_ECHO,
     pool_pre_ping=True,
     pool_size=10,

@@ -20,6 +20,15 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = "postgresql://memax_user:memax_password@localhost:5432/memax_db"
+    
+    @property
+    def sync_database_url(self) -> str:
+        # Render and other providers often use postgres:// instead of postgresql://
+        # SQLAlchemy 2.0+ requires postgresql://
+        if self.DATABASE_URL.startswith("postgres://"):
+            return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
+        return self.DATABASE_URL
+        
     DB_ECHO: bool = False
     
     # Redis
