@@ -179,6 +179,7 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
                     rating=round(numeric_rating, 1),
                     imdb_rating=round(numeric_rating - 0.2, 1),
                     age_rating=row.get("rating", "").strip() or None,
+                    date_added=row.get("date_added", "").strip() or None,
                     content_type=content_type,
                     director=row.get("director", "").strip() or None,
                     cast=row.get("cast", "").strip() or None,

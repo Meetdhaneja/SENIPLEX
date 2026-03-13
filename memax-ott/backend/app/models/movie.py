@@ -30,6 +30,7 @@ class Movie(BaseModel):
     rating = Column(Float, default=0.0)
     imdb_rating = Column(Float, nullable=True)
     age_rating = Column(String(50), nullable=True)  # TV-MA, PG-13, etc.
+    date_added = Column(String(100), nullable=True)
     content_type = Column(String(50), nullable=False)  # Movie, TV Show, Documentary
     director = Column(String(255), nullable=True)
     cast = Column(Text, nullable=True)  # Comma-separated

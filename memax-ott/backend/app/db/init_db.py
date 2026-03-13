@@ -15,10 +15,32 @@ from loguru import logger
 
 
 def init_db():
-    """Create all database tables"""
+    """Create all database tables and handle schema updates"""
     try:
+        # Create tables
         Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully")
+        
+        # Primitive migration: Check for missing columns and add them
+        # (This is a simplified approach for Render deployments without Alembic migrations setup)
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            # Check for age_rating
+            try:
+                conn.execute(text("SELECT age_rating FROM movies LIMIT 1"))
+            except Exception:
+                logger.info("Adding missing column 'age_rating' to movies table")
+                conn.execute(text("ALTER TABLE movies ADD COLUMN age_rating VARCHAR(50)"))
+                conn.commit()
+
+            # Check for date_added
+            try:
+                conn.execute(text("SELECT date_added FROM movies LIMIT 1"))
+            except Exception:
+                logger.info("Adding missing column 'date_added' to movies table")
+                conn.execute(text("ALTER TABLE movies ADD COLUMN date_added VARCHAR(100)"))
+                conn.commit()
+                
+        logger.info("Database synchronized successfully")
     except Exception as e:
-        logger.error(f"Error creating database tables: {str(e)}")
-        raise
+        logger.error(f"Error initializing database: {str(e)}")
+        # We don't raise here to let the app try to start anyway

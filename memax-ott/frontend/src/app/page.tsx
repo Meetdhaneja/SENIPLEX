@@ -180,9 +180,12 @@ export default function Home() {
               trendingMovies.length === 0 &&
               newReleases.length === 0 && (
                 <div className="text-center py-20 text-gray-500">
-                  <h2 className="text-xl">
-                    No movies found. Please check backend connection.
-                  </h2>
+                  <p className="animate-pulse">
+                    Populating our expansive library of 8,800+ titles...
+                  </p>
+                  <p className="text-sm mt-2">
+                    Please refresh in a moment if you don't see content yet.
+                  </p>
                 </div>
               )}
           </>
