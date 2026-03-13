@@ -184,7 +184,7 @@ export default function Home() {
                     Populating our expansive library of 8,800+ titles...
                   </p>
                   <p className="text-sm mt-2">
-                    Please refresh in a moment if you don't see content yet.
+                    Please refresh in a moment if you don&apos;t see content yet.
                   </p>
                 </div>
               )}
