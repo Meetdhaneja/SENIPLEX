@@ -143,6 +143,10 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
 
     logger.info("Inserting into database...")
     
+    # Pre-fetch existing (title, year) pairs to avoid 8800 queries
+    existing_movies = set(db.query(Movie.title, Movie.release_year).all())
+    logger.info(f"Already found {len(existing_movies)} movies in DB. Skipping duplicates.")
+
     loaded = 0
     BATCH_SIZE = 100
     
@@ -153,10 +157,10 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
                 title = row.get("title", "").strip()
                 if not title: continue
 
-                # Check for duplicates
                 release_year = int(row.get("release_year")) if row.get("release_year", "").isdigit() else None
-                existing = db.query(Movie).filter(Movie.title == title, Movie.release_year == release_year).first()
-                if existing:
+                
+                # Fast duplicate check
+                if (title, release_year) in existing_movies:
                     continue
 
                 content_type = "TV Show" if row.get("type") == "TV Show" else "Movie"
@@ -168,9 +172,11 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
                 if title in poster_map:
                     thumbnail_url = poster_map[title]
                 else:
-                    # Clean fallback
-                    thumbnail_url = f"https://via.placeholder.com/300x450/111/eee?text={title[:15]}"
+                    thumbnail_url = f"https://via.placeholder.com/400x600/111/eee?text={title[:15]}"
 
+                # Improved featured logic: Mark first 60 movies as featured to ensure Hero and Sections aren't empty
+                is_featured = (loaded < 60)
+                
                 movie = Movie(
                     title=title,
                     description=description,
@@ -184,9 +190,9 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
                     director=row.get("director", "").strip() or None,
                     cast=row.get("cast", "").strip() or None,
                     thumbnail_url=thumbnail_url,
-                    is_featured=(loaded < 100 and release_year and release_year >= 2021),
+                    is_featured=is_featured,
                     is_active=True,
-                    view_count=random.randint(100, 500000), # Randomized for Trending variety
+                    view_count=random.randint(100, 500000),
                 )
 
                 movie.genres = map_genres(db, row.get("listed_in", ""))
@@ -199,16 +205,18 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
                         movie.countries = [country_obj]
 
                 db.add(movie)
+                existing_movies.add((title, release_year)) # Track in memory too
                 loaded += 1
 
             except Exception as e:
+                logger.error(f"Failed to seed movie {title}: {str(e)}")
                 continue
         
         db.commit()
         if loaded % 500 == 0:
-            logger.info(f"Progress: {loaded} movies seeded.")
+            logger.info(f"Progress: {loaded} movies seeded in this session.")
 
-    logger.info(f"Success! Loaded {loaded} new movies from CSV.")
+    logger.info(f"Full CSV Seeding complete! Total new entries loaded: {loaded}")
 
 def run():
     db = SessionLocal()

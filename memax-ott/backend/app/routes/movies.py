@@ -17,7 +17,7 @@ from app.routes.auth import get_current_user
 router = APIRouter()
 
 
-@router.get("/", response_model=MovieListResponse)
+@router.get("", response_model=MovieListResponse)
 def list_movies(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -76,7 +76,7 @@ def get_movie(movie_id: int, db: Session = Depends(get_db)):
     return movie
 
 
-@router.post("/", response_model=MovieResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=MovieResponse, status_code=status.HTTP_201_CREATED)
 def create_movie_endpoint(
     movie_data: MovieCreate,
     db: Session = Depends(get_db),

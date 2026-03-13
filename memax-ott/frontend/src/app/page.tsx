@@ -58,12 +58,16 @@ export default function Home() {
         let recs: any[] = [];
         try {
           const result = await recommendationService.getPersonalizedRecommendations(16);
-          recs = result?.recommendations || result || [];
-        } catch {
+          // Flatten {recommendations: [{movie: {...}}]} to [{...}]
+          const rawRecs = result?.recommendations || [];
+          recs = rawRecs.map((item: any) => item.movie || item);
+        } catch (error) {
+          console.error("AI recommendations failed, falling back to cold start", error);
           recs = await recommendationService.getColdStartRecommendations(16);
         }
         setRecommendations(Array.isArray(recs) ? recs : []);
-      } catch {
+      } catch (err) {
+        console.error("Cold start also failed", err);
         setRecommendations([]);
       } finally {
         setRecsLoading(false);
