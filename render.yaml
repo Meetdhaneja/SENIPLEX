@@ -64,7 +64,7 @@ services:
         fromService:
           type: web
           name: memax-backend
-          property: host
+          property: url
 
   # 4. Redis Cache
   - type: redis

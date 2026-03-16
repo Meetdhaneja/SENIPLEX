@@ -143,4 +143,10 @@ async def db_status():
 
 @app.get("/")
 async def root():
-    return {"status": "online", "service": settings.APP_NAME, "env": os.getenv("ENVIRONMENT")}
+    return {
+        "status": "online", 
+        "service": settings.APP_NAME, 
+        "env": os.getenv("ENVIRONMENT", "unknown"),
+        "docs": "/api/docs",
+        "api_ready": True
+    }
