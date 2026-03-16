@@ -74,16 +74,18 @@ class RecommendationService:
                     score = 1.0 - (idx * 0.05)
                     score = max(0.5, min(1.0, score))
                     
-                    # Generate reason based on recommendation type
-                    reason = self._generate_reason(user_id, movie, db)
+                    # Use safe serialization from movie_service to prevent lazy-load crashes
+                    from app.services.movie_service import _safe_serialize
+                    movie_dict = _safe_serialize(movie)
                     
-                    recommendations.append(
-                        RecommendationItem(
-                            movie=MovieResponse.from_orm(movie),
-                            score=score,
-                            reason=reason
+                    if movie_dict:
+                        recommendations.append(
+                            RecommendationItem(
+                                movie=movie_dict,
+                                score=score,
+                                reason=reason
+                            )
                         )
-                    )
             
             logger.info(f"Generated {len(recommendations)} AI recommendations for user {user_id}")
             
@@ -279,14 +281,19 @@ class RecommendationService:
             desc(Movie.view_count)
         ).limit(request.limit).all()
         
-        recommendations = [
-            RecommendationItem(
-                movie=MovieResponse.from_orm(movie),
-                score=movie.rating / 10.0,
-                reason="Highly rated"
-            )
-            for movie in movies
-        ]
+        from app.services.movie_service import _safe_serialize
+        
+        recommendations = []
+        for movie in movies:
+            serialized = _safe_serialize(movie)
+            if serialized:
+                recommendations.append(
+                    RecommendationItem(
+                        movie=serialized,
+                        score=movie.rating / 10.0 if hasattr(movie, 'rating') else 0.8,
+                        reason="Highly rated"
+                    )
+                )
         
         return RecommendationResponse(
             recommendations=recommendations,

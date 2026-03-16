@@ -1,19 +1,20 @@
 """MEMAX OTT Platform - Main Application Entry Point"""
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from loguru import logger
 import sys
+import traceback
+import os
 
 from app.core.config import settings
-from app.core.middleware import LoggingMiddleware, ErrorHandlingMiddleware
+from app.core.middleware import LoggingMiddleware
 from app.core.rate_limiter import limiter
 from app.core.healthcheck import router as health_router
 from app.routes import auth, movies, interactions, recommendations, analytics, admin, ai, likes, health
-from app.db.init_db import init_db
 
 # Configure logging
 logger.remove()
@@ -23,146 +24,98 @@ logger.add(
     level=settings.LOG_LEVEL
 )
 
-# Create FastAPI app
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="AI-Powered OTT Platform with Personalized Recommendations",
     debug=settings.DEBUG,
     docs_url="/api/docs",
-    redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
 
-# Add rate limiter
+# Global Error Handler (Internal to app for better control)
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    logger.error(f"Global catch: {str(exc)}\n{tb}")
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal Server Error",
+            "message": str(exc),
+            "type": type(exc).__name__,
+            "traceback": tb if settings.DEBUG or os.getenv("ENVIRONMENT") != "production" else "Hidden in production"
+        }
+    )
+
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS if "*" not in settings.CORS_ORIGINS else [],
-    allow_origin_regex=".*", # Allow all domains in production for Render
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Add custom middleware
 app.add_middleware(LoggingMiddleware)
-app.add_middleware(ErrorHandlingMiddleware)
 
-# Mount static files
+# Mount static
 try:
-    app.mount("/static", StaticFiles(directory="app/static"), name="static")
-except RuntimeError:
-    logger.warning("Static directory not found, skipping static files mount")
+    if os.path.exists("app/static"):
+        app.mount("/static", StaticFiles(directory="app/static"), name="static")
+except: pass
 
 # Include routers
-# Core health at root and /api/health
 app.include_router(health_router, prefix="/api", tags=["Health"])
 app.include_router(health.router, prefix="/api/health-check", tags=["Health"])
-
-# Business routes
-app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(movies.router, prefix="/api/movies", tags=["Movies"])
 app.include_router(interactions.router, prefix="/api/interactions", tags=["Interactions"])
-app.include_router(recommendations.router, prefix="/api/recommendations", tags=["Recommendations"])
+app.include_router(recommendations.router, prefix="/api/recommendations", tags=["Recs"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin"])
 app.include_router(ai.router, prefix="/api/ai", tags=["AI"])
 app.include_router(likes.router, prefix="/api/likes", tags=["Likes"])
 
-# Admin UI
-from app.admin_ui import routes as admin_ui_routes
-app.include_router(admin_ui_routes.router, prefix="/admin", tags=["Admin UI"])
-
-
 @app.on_event("startup")
 async def startup_event():
-    """Initialize application on startup - Non-blocking for Render"""
-    logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
+    logger.info(f"Startup: {settings.ENVIRONMENT}")
     
+    # Non-blocking background startup for Render Free Tier
     import threading
     from app.db.init_db import init_db
-    from app.db.seed import seed_database
     
-    def async_startup_task():
-        """Background thread for DB ops so port 8000 opens immediately"""
+    def background_task():
         try:
-            # 1. Initialize schema
-            logger.info("Background job: Initializing database schema...")
+            # 1. Init DB tables if they don't exist
             init_db()
+            logger.info("DB Schema check complete")
             
-            # 2. Seed data
-            logger.info("Background job: Starting database seeding...")
-            seed_database()
-            logger.info("Background job: Database ready.")
+            # 2. Seed only if empty and NOT in a tiny environment (Optional)
+            if os.getenv("ENVIRONMENT") == "production":
+                logger.info("Production mode: Skipping automated heavy seeding to conserve RAM. Seed manually via /api/admin/seed if needed.")
+            else:
+                from app.db.seed import seed_database
+                seed_database()
         except Exception as e:
-            logger.error(f"Background startup failed: {str(e)}")
+            logger.error(f"Background thread error: {e}")
 
-    # Start the thread and return immediately so uvicorn can bind the port
-    threading.Thread(target=async_startup_task, daemon=True).start()
-    logger.info("Startup sequence handed over to background thread. Port 8000 should open now.")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("Shutting down application")
-
+    threading.Thread(target=background_task, daemon=True).start()
 
 @app.get("/api/health/db-status")
 async def db_status():
-    """Check database status and movie count with detailed progress reporting"""
     from app.db.session import SessionLocal
     from app.models.movie import Movie
+    db = SessionLocal()
     try:
-        db = SessionLocal()
-        try:
-            count = db.query(Movie).count()
-            featured_count = db.query(Movie).filter(Movie.is_featured == True).count()
-            return {
-                "movie_count": count,
-                "featured_count": featured_count,
-                "status": "ready" if count > 50 else "seeding",
-                "message": f"Currently have {count} movies partially loaded. Refresh in a moment." if count < 500 else "Library is being populated.",
-                "database_connected": True
-            }
-        except Exception as e:
-            logger.error(f"DB Status query failed: {str(e)}")
-            return {
-                "status": "error", 
-                "message": f"Query failed: {str(e)}",
-                "database_connected": True
-            }
-        finally:
-            db.close()
+        count = db.query(Movie).count()
+        return {"status": "ready" if count > 0 else "empty", "count": count}
     except Exception as e:
-        logger.error(f"DB Status connection failed: {str(e)}")
-        return {
-            "status": "error", 
-            "message": f"Connection failed: {str(e)}. Check DATABASE_URL protocol/SSL.",
-            "database_connected": False
-        }
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 @app.get("/")
 async def root():
-    """Root endpoint"""
-    return {
-        "message": f"Welcome to {settings.APP_NAME}",
-        "version": settings.APP_VERSION,
-        "docs": "/docs",
-        "health": "/health"
-    }
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=settings.DEBUG,
-        log_level=settings.LOG_LEVEL.lower()
-    )
+    return {"status": "online", "service": settings.APP_NAME}

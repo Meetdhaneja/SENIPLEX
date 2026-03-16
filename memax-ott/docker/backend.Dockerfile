@@ -32,14 +32,14 @@ COPY --from=builder /root/.local /root/.local
 # Copy source
 COPY . .
 
-# Create upload dir with correct permissions
+# Create upload dir
 RUN mkdir -p uploads/movies && chmod -R 777 uploads/
 
 ENV PATH=/root/.local/bin:$PATH
+ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD curl -f http://localhost:8000/api/movies || exit 1
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Reduced workers and increased timeout for ultra-stability on Free Tier
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-keep-alive", "60"]
