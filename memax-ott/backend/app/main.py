@@ -108,14 +108,14 @@ async def startup_event():
                 ("is_active", "BOOLEAN DEFAULT TRUE")
             ]
             
-            with engine.connect() as conn:
+            # engine.begin() automatically handles transaction commit/rollback
+            with engine.begin() as conn:
                 for col_name, col_type in migrations:
                     try:
                         # Use IF NOT EXISTS for absolute safety in Postgres
                         conn.execute(text(f"ALTER TABLE movies ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
-                        conn.commit()
                     except Exception as e:
-                        logger.warning(f"Note: Column {col_name} check: {e}")
+                        logger.warning(f"Column {col_name} migration note: {e}")
             
             logger.info("Database schema sync complete.")
             
@@ -124,7 +124,7 @@ async def startup_event():
                 from app.db.seed import seed_database
                 seed_database()
         except Exception as e:
-            logger.error(f"Background thread error: {e}")
+            logger.error(f"Background startup thread error: {e}\n{traceback.format_exc()}")
 
     threading.Thread(target=background_task, daemon=True).start()
 
