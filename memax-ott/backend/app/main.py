@@ -43,7 +43,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             "detail": "Internal Server Error",
             "message": str(exc),
             "type": type(exc).__name__,
-            "traceback": tb if settings.DEBUG or os.getenv("ENVIRONMENT") != "production" else "Hidden in production"
+            "traceback": tb # Enabled for debugging phase
         }
     )
 
@@ -90,7 +90,39 @@ async def startup_event():
         try:
             # 1. Init DB tables if they don't exist
             init_db()
-            logger.info("DB Schema check complete")
+            
+            # List of columns to check and add if missing
+            migrations = [
+                ("age_rating", "VARCHAR(50)"),
+                ("date_added", "VARCHAR(100)"),
+                ("is_featured", "BOOLEAN DEFAULT FALSE"),
+                ("view_count", "INTEGER DEFAULT 0"),
+                ("rating", "FLOAT DEFAULT 0.0"),
+                ("imdb_rating", "FLOAT"),
+                ("thumbnail_url", "VARCHAR(500)"),
+                ("is_active", "BOOLEAN DEFAULT TRUE")
+            ]
+            
+            from sqlalchemy import text
+            from app.db.session import SessionLocal
+            
+            db = SessionLocal()
+            conn = db.connection()
+            
+            for col_name, col_type in migrations:
+                try:
+                    conn.execute(text(f"SELECT {col_name} FROM movies LIMIT 1"))
+                except Exception:
+                    try:
+                        logger.info(f"Syncing schema: Adding column '{col_name}' to 'movies' table")
+                        # PostgreSQL: Wrap in sub-transaction-like logic by committing if possible
+                        conn.execute(text(f"ALTER TABLE movies ADD COLUMN {col_name} {col_type}"))
+                        conn.commit()
+                        logger.info(f"Successfully added {col_name}")
+                    except Exception as ex:
+                        logger.warning(f"Failed to add {col_name} (might require manual fix): {ex}")
+            db.close()
+            logger.info("Database migration/sync check complete")
             
             # 2. Seed only if empty and NOT in a tiny environment (Optional)
             if os.getenv("ENVIRONMENT") == "production":
