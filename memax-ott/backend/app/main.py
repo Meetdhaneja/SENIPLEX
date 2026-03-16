@@ -59,8 +59,11 @@ except RuntimeError:
     logger.warning("Static directory not found, skipping static files mount")
 
 # Include routers
-app.include_router(health_router, tags=["Health"])
-app.include_router(health.router, prefix="/health", tags=["Health"])
+# Core health at root and /api/health
+app.include_router(health_router, prefix="/api", tags=["Health"])
+app.include_router(health.router, prefix="/api/health-check", tags=["Health"])
+
+# Business routes
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(movies.router, prefix="/api/movies", tags=["Movies"])
 app.include_router(interactions.router, prefix="/api/interactions", tags=["Interactions"])
