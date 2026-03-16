@@ -1,5 +1,5 @@
 """Interaction routes"""
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 
@@ -21,11 +21,12 @@ router = APIRouter()
 @router.post("", response_model=InteractionResponse, status_code=status.HTTP_201_CREATED)
 async def record_interaction(
     interaction_data: InteractionCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Record user interaction with movie"""
-    return create_interaction(db, current_user.id, interaction_data)
+    return create_interaction(db, current_user.id, interaction_data, background_tasks)
 
 
 @router.get("", response_model=List[InteractionResponse])

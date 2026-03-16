@@ -6,11 +6,12 @@ from app.models.interaction import Interaction
 from app.models.watch_progress import WatchProgress
 from app.models.watch_history import WatchHistory
 from app.schemas.interaction_schema import InteractionCreate, WatchProgressCreate
+from fastapi import BackgroundTasks
 
 
 from app.tasks.update_user_embedding import update_user_embedding_task
 
-def create_interaction(db: Session, user_id: int, interaction_data: InteractionCreate) -> Interaction:
+def create_interaction(db: Session, user_id: int, interaction_data: InteractionCreate, background_tasks: BackgroundTasks = None) -> Interaction:
     """Create interaction"""
     interaction = Interaction(
         user_id=user_id,
@@ -20,12 +21,17 @@ def create_interaction(db: Session, user_id: int, interaction_data: InteractionC
     db.commit()
     db.refresh(interaction)
     
-    # Trigger AI matrix embedding update asynchronously via Celery
-    try:
-        update_user_embedding_task.delay(user_id)
-    except Exception as e:
-        import loguru
-        loguru.logger.error(f"Failed to queue celery task: {str(e)}")
+    # Trigger AI matrix embedding update
+    # If background_tasks is provided (standard path), use it to avoid dependency on Celery worker
+    if background_tasks:
+        background_tasks.add_task(update_user_embedding_task, user_id)
+    else:
+        # Fallback to Celery if called from other contexts (like scripts)
+        try:
+            update_user_embedding_task.delay(user_id)
+        except Exception as e:
+            import loguru
+            loguru.logger.error(f"Failed to queue celery task: {str(e)}")
         
     return interaction
 
