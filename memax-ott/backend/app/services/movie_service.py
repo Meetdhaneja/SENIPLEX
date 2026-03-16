@@ -6,15 +6,15 @@ from datetime import datetime
 from app.models.movie import Movie
 from app.models.genre import Genre
 from app.models.country import Country
-from app.schemas.movie_schema import MovieCreate, MovieUpdate, MovieResponse
+from app.schemas.movie_schema import MovieCreate, MovieUpdate
 from loguru import logger
 
-# Helper to create a Safe Mock Movie object that perfectly matches the JSON schema
 def create_mock_movie(id: int, title: str, is_featured: bool = False):
+    """Helper to create a Safe Mock Movie object that matches MovieResponse exactly"""
     return {
         "id": id,
         "title": title,
-        "description": f"Expansive story about {title} and its impact on the world.",
+        "description": f"An epic journey in {title}. Experience the magic of MEMAX.",
         "release_year": 2024,
         "duration_minutes": 120,
         "rating": 8.5,
@@ -23,7 +23,7 @@ def create_mock_movie(id: int, title: str, is_featured: bool = False):
         "is_featured": is_featured,
         "view_count": 1000,
         "thumbnail_url": f"https://placehold.co/600x400/000000/FFFFFF?text={title.replace(' ', '+')}",
-        "created_at": datetime.utcnow().isoformat(), # Use ISO string for absolute safety
+        "created_at": datetime.utcnow(),
         "genres": [],
         "countries": [],
         "age_rating": "PG-13",
@@ -48,58 +48,70 @@ STATIC_FALLBACK = [
 ]
 
 def _safe_serialize(movie_obj):
-    """Safely convert a SQLAlchemy model to a dictionary that matches MovieResponse"""
+    """Safely convert a SQLAlchemy model to a dictionary that matches MovieResponse.
+    Ensures no None values reach non-optional Pydantic fields.
+    """
     try:
-        # We manually build the dict to avoid any lazy-load issues during Pydantic validation
         return {
-            "id": movie_obj.id,
-            "title": movie_obj.title,
-            "description": movie_obj.description,
-            "release_year": movie_obj.release_year,
-            "duration_minutes": movie_obj.duration_minutes,
-            "rating": getattr(movie_obj, "rating", 0.0),
+            "id": getattr(movie_obj, "id", 0),
+            "title": str(getattr(movie_obj, "title", "Untitled")),
+            "description": getattr(movie_obj, "description", None),
+            "release_year": getattr(movie_obj, "release_year", 2024),
+            "duration_minutes": getattr(movie_obj, "duration_minutes", None),
+            "rating": float(getattr(movie_obj, "rating", 0.0) or 0.0),
             "imdb_rating": getattr(movie_obj, "imdb_rating", None),
-            "content_type": movie_obj.content_type,
-            "is_featured": getattr(movie_obj, "is_featured", False),
-            "view_count": getattr(movie_obj, "view_count", 0),
-            "thumbnail_url": movie_obj.thumbnail_url,
-            "video_url": movie_obj.video_url,
-            "trailer_url": movie_obj.trailer_url,
-            "age_rating": getattr(movie_obj, "age_rating", "Unrated"),
+            "content_type": str(getattr(movie_obj, "content_type", "Movie")),
+            "is_featured": bool(getattr(movie_obj, "is_featured", False)),
+            "view_count": int(getattr(movie_obj, "view_count", 0) or 0),
+            "thumbnail_url": getattr(movie_obj, "thumbnail_url", None),
+            "video_url": getattr(movie_obj, "video_url", None),
+            "trailer_url": getattr(movie_obj, "trailer_url", None),
+            "age_rating": getattr(movie_obj, "age_rating", "PG-13"),
             "date_added": getattr(movie_obj, "date_added", ""),
-            "director": movie_obj.director,
-            "cast": movie_obj.cast,
-            "created_at": movie_obj.created_at if isinstance(movie_obj.created_at, datetime) else datetime.utcnow(),
-            "genres": [{"id": g.id, "name": g.name} for g in movie_obj.genres] if hasattr(movie_obj, "genres") else [],
-            "countries": [{"id": c.id, "name": c.name} for c in movie_obj.countries] if hasattr(movie_obj, "countries") else []
+            "director": getattr(movie_obj, "director", None),
+            "cast": getattr(movie_obj, "cast", None),
+            "created_at": getattr(movie_obj, "created_at", None) or datetime.utcnow(),
+            "genres": [{"id": g.id, "name": g.name} for g in movie_obj.genres] if hasattr(movie_obj, "genres") and movie_obj.genres else [],
+            "countries": [{"id": c.id, "name": c.name} for c in movie_obj.countries] if hasattr(movie_obj, "countries") and movie_obj.countries else []
         }
     except Exception as e:
-        logger.warning(f"Serialization failed for movie {getattr(movie_obj, 'title', 'Unknown')}: {e}")
+        logger.error(f"Critical serialization error: {e}")
         return None
 
-def get_movies(db: Session, page: int = 1, page_size: int = 20, **kwargs) -> Tuple[List[dict], int]:
+def get_movies(
+    db: Session, 
+    page: int = 1, 
+    page_size: int = 20, 
+    genre: Optional[str] = None, 
+    country: Optional[str] = None, 
+    content_type: Optional[str] = None
+) -> Tuple[List[dict], int]:
+    """Get movies with corrected signature to prevent positional argument TypeErrors"""
     if db is None: return STATIC_FALLBACK, len(STATIC_FALLBACK)
     try:
-        # Check table existence
+        # Table health check
         db.execute(text("SELECT 1 FROM movies LIMIT 1"))
         
-        # Eager load relationships to prevent 500s during lazy loading
         query = db.query(Movie).options(joinedload(Movie.genres), joinedload(Movie.countries))
+        
+        # Apply filters if provided
+        if genre: query = query.join(Movie.genres).filter(Genre.name == genre)
+        if country: query = query.join(Movie.countries).filter(Country.name == country)
+        if content_type: query = query.filter(Movie.content_type == content_type)
         
         total = query.count()
         if total == 0: return STATIC_FALLBACK, len(STATIC_FALLBACK)
         
         movies = query.order_by(desc(Movie.release_year)).offset((page - 1) * page_size).limit(page_size).all()
         
-        # Safe conversion to dicts
         results = []
         for m in movies:
-            serialized = _safe_serialize(m)
-            if serialized: results.append(serialized)
+            s = _safe_serialize(m)
+            if s: results.append(s)
             
         return results if results else STATIC_FALLBACK, total
     except Exception as e:
-        logger.error(f"Using static fallback for get_movies: {e}")
+        logger.warning(f"get_movies triggered fallback: {e}")
         return STATIC_FALLBACK, len(STATIC_FALLBACK)
 
 def get_featured_movies(db: Session, limit: int = 10) -> List[dict]:
@@ -107,15 +119,10 @@ def get_featured_movies(db: Session, limit: int = 10) -> List[dict]:
     try:
         db.execute(text("SELECT 1 FROM movies LIMIT 1"))
         movies = db.query(Movie).options(joinedload(Movie.genres), joinedload(Movie.countries)).filter(Movie.is_featured == True).limit(limit).all()
-        
-        results = []
-        for m in movies:
-            serialized = _safe_serialize(m)
-            if serialized: results.append(serialized)
-            
+        results = [_safe_serialize(m) for m in movies if _safe_serialize(m)]
         return results if results else [m for m in STATIC_FALLBACK if m["is_featured"]][:limit]
     except Exception as e:
-        logger.error(f"Using static fallback for featured: {e}")
+        logger.warning(f"get_featured triggered fallback: {e}")
         return [m for m in STATIC_FALLBACK if m["is_featured"]][:limit]
 
 def get_trending_movies(db: Session, limit: int = 10) -> List[dict]:
@@ -123,31 +130,27 @@ def get_trending_movies(db: Session, limit: int = 10) -> List[dict]:
     try:
         db.execute(text("SELECT 1 FROM movies LIMIT 1"))
         movies = db.query(Movie).options(joinedload(Movie.genres), joinedload(Movie.countries)).order_by(desc(Movie.view_count)).limit(limit).all()
-        
-        results = []
-        for m in movies:
-            serialized = _safe_serialize(m)
-            if serialized: results.append(serialized)
-            
+        results = [_safe_serialize(m) for m in movies if _safe_serialize(m)]
         return results if results else STATIC_FALLBACK[:limit]
     except Exception as e:
-        logger.error(f"Using static fallback for trending: {e}")
+        logger.warning(f"get_trending triggered fallback: {e}")
         return STATIC_FALLBACK[:limit]
 
-def get_movie_by_id(db: Session, movie_id: int) -> Optional[Movie]:
+def get_movie_by_id(db: Session, movie_id: int) -> Optional[dict]:
+    if db is None: return None
     try:
-        if db is not None:
-            return db.query(Movie).options(joinedload(Movie.genres), joinedload(Movie.countries)).filter(Movie.id == movie_id).first()
-        return None
+        movie = db.query(Movie).options(joinedload(Movie.genres), joinedload(Movie.countries)).filter(Movie.id == movie_id).first()
+        return _safe_serialize(movie) if movie else None
     except Exception: return None
 
-def search_movies(db: Session, query: str, limit: int = 20) -> List[Movie]:
+def search_movies(db: Session, query: str, limit: int = 20) -> List[dict]:
+    if db is None: return []
     try:
-        if db is not None:
-            return db.query(Movie).filter(Movie.title.ilike(f"%{query}%")).limit(limit).all()
-        return []
+        movies = db.query(Movie).filter(Movie.title.ilike(f"%{query}%")).limit(limit).all()
+        return [_safe_serialize(m) for m in movies if _safe_serialize(m)]
     except Exception: return []
 
+# Keep these for admin ops
 def create_movie(db: Session, movie_data: MovieCreate) -> Movie:
     movie = Movie(**movie_data.dict(exclude={"genre_ids", "country_ids"}))
     db.add(movie)
@@ -156,7 +159,7 @@ def create_movie(db: Session, movie_data: MovieCreate) -> Movie:
     return movie
 
 def update_movie(db: Session, movie_id: int, movie_data: MovieUpdate) -> Optional[Movie]:
-    movie = get_movie_by_id(db, movie_id)
+    movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if not movie: return None
     for field, value in movie_data.dict(exclude_unset=True).items():
         setattr(movie, field, value)
@@ -165,7 +168,7 @@ def update_movie(db: Session, movie_id: int, movie_data: MovieUpdate) -> Optiona
     return movie
 
 def delete_movie(db: Session, movie_id: int) -> bool:
-    movie = get_movie_by_id(db, movie_id)
+    movie = db.query(Movie).filter(Movie.id == movie_id).first()
     if not movie: return False
     db.delete(movie)
     db.commit()
