@@ -81,25 +81,29 @@ async def startup_event():
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     
-    # Run DB Initialization and Seeding in background
+    # 1. Initialize database tables SYNCHRONOUSLY
+    # This ensures tables exist before ANY request is handled
+    try:
+        init_db()
+        logger.info("Database schema initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize database schema: {str(e)}")
+    
+    # 2. Run Seeding in background
     # This ensures the server starts listening on the port IMMEDIATELY
     import threading
     from app.db.seed import seed_database
     
     def background_startup():
         try:
-            # Initialize database (schema checks/migrations)
-            init_db()
-            logger.info("Database initialized successfully in background")
-            
-            # Seed database
+            # Seed database (8800+ movies takes time)
             seed_database()
             logger.info("Database seeding completed in background")
         except Exception as e:
-            logger.error(f"Background startup task failed: {str(e)}")
+            logger.error(f"Background seeding failed: {str(e)}")
 
     threading.Thread(target=background_startup, daemon=True).start()
-    logger.info("Database initialization and seeding started in background thread")
+    logger.info("Database seeding started in background thread")
 
 
 @app.on_event("shutdown")

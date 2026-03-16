@@ -115,43 +115,60 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
 
     logger.info(f"Seeding FULL dataset from CSV (up to {max_rows} rows)...")
     
-    # Read ALL rows
-    rows = []
+    # Process in batches to save memory
+    BATCH_SIZE = 250
+    loaded = 0
+    existing_movies = set()
+    
+    try:
+        # Pre-fetch existing (title, year) pairs to avoid duplicates
+        existing_movies = set(db.query(Movie.title, Movie.release_year).all())
+        logger.info(f"Already found {len(existing_movies)} movies in DB. Skipping duplicates.")
+    except Exception:
+        logger.warning("Could not pre-fetch existing movies. Proceeding with caution.")
+
+    # Process row by row
     with open(CSV_PATH, encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        batch = []
         for i, row in enumerate(reader):
             if i >= max_rows: break
-            rows.append(row)
+            
+            title = row.get("title", "").strip()
+            if not title: continue
+            
+            release_year = int(row.get("release_year")) if row.get("release_year", "").isdigit() else None
+            if (title, release_year) in existing_movies:
+                continue
+                
+            batch.append(row)
+            
+            if len(batch) >= BATCH_SIZE:
+                loaded += _process_batch(db, batch, existing_movies)
+                batch = []
+                logger.info(f"Progress: {loaded} movies seeded...")
+        
+        # Process final batch
+        if batch:
+            loaded += _process_batch(db, batch, existing_movies)
 
-    total_rows = len(rows)
-    logger.info(f"Processing {total_rows} entries...")
+    logger.info(f"Full CSV Seeding complete! Total new entries loaded: {loaded}")
 
-    # Fetch real posters for more titles (Top 600)
-    POSTER_SCRAPE_LIMIT = 600
-    top_titles = [r.get("title", "").strip() for r in rows[:POSTER_SCRAPE_LIMIT]]
-    
-    logger.info(f"Fetching real posters for top {len(top_titles)} titles...")
+def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
+    """Helper to process a batch of CSV rows"""
+    loaded = 0
+    # Fetch posters for this batch (smaller pool for Free Tier)
+    titles = [r.get("title", "").strip() for r in batch_rows]
     poster_map = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=15) as executor:
-        future_to_title = {executor.submit(fetch_poster_safe, title): title for title in top_titles if title}
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        future_to_title = {executor.submit(fetch_poster_safe, t): t for t in titles if t}
         for future in concurrent.futures.as_completed(future_to_title):
             title = future_to_title[future]
             try:
                 poster_map[title] = future.result()
             except Exception:
                 poster_map[title] = f"https://via.placeholder.com/300x450/1a1a2e/ffffff?text={title.replace(' ', '+')}"
-
-    logger.info("Inserting into database...")
-    
-    # Pre-fetch existing (title, year) pairs to avoid 8800 queries
-    existing_movies = set(db.query(Movie.title, Movie.release_year).all())
-    logger.info(f"Already found {len(existing_movies)} movies in DB. Skipping duplicates.")
-
-    loaded = 0
-    BATCH_SIZE = 100
-    
-    for i in range(0, total_rows, BATCH_SIZE):
-        batch_rows = rows[i:i + BATCH_SIZE]
         for row in batch_rows:
             try:
                 title = row.get("title", "").strip()

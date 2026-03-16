@@ -17,6 +17,12 @@ def get_movies(
     content_type: Optional[str] = None
 ) -> Tuple[List[Movie], int]:
     """Get movies with pagination and filters"""
+    # Safety check: if table doesn't exist yet, return empty
+    from sqlalchemy import inspect
+    inspector = inspect(db.get_bind())
+    if not inspector.has_table("movies"):
+        return [], 0
+        
     query = db.query(Movie)
     
     if genre:
@@ -26,10 +32,13 @@ def get_movies(
     if content_type:
         query = query.filter(Movie.content_type == content_type)
     
-    total = query.count()
-    movies = query.order_by(desc(Movie.release_year)).offset((page - 1) * page_size).limit(page_size).all()
-    
-    return movies, total
+    try:
+        total = query.count()
+        movies = query.order_by(desc(Movie.release_year)).offset((page - 1) * page_size).limit(page_size).all()
+        return movies, total
+    except Exception:
+        # Fallback if table exists but query fails (e.g. during migration)
+        return [], 0
 
 
 def get_movie_by_id(db: Session, movie_id: int) -> Optional[Movie]:
@@ -102,9 +111,22 @@ def search_movies(db: Session, query: str, limit: int = 20) -> List[Movie]:
 
 def get_featured_movies(db: Session, limit: int = 10) -> List[Movie]:
     """Get featured movies with slight randomization"""
-    return db.query(Movie).filter(Movie.is_featured == True).order_by(func.random()).limit(limit).all()
-
+    from sqlalchemy import inspect
+    inspector = inspect(db.get_bind())
+    if not inspector.has_table("movies"):
+        return []
+    try:
+        return db.query(Movie).filter(Movie.is_featured == True).order_by(func.random()).limit(limit).all()
+    except Exception:
+        return []
 
 def get_trending_movies(db: Session, limit: int = 10) -> List[Movie]:
     """Get trending movies"""
-    return db.query(Movie).order_by(desc(Movie.view_count)).limit(limit).all()
+    from sqlalchemy import inspect
+    inspector = inspect(db.get_bind())
+    if not inspector.has_table("movies"):
+        return []
+    try:
+        return db.query(Movie).order_by(desc(Movie.view_count)).limit(limit).all()
+    except Exception:
+        return []

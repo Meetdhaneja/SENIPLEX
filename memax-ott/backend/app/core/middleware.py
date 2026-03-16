@@ -33,8 +33,16 @@ class ErrorHandlingMiddleware(BaseHTTPMiddleware):
             response = await call_next(request)
             return response
         except Exception as e:
-            logger.error(f"Unhandled error: {str(e)}")
+            error_msg = f"Unhandled error: {str(e)}"
+            logger.error(error_msg)
+            # Log the full traceback for better debugging in Render logs
+            import traceback
+            logger.error(traceback.format_exc())
+            
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={"detail": "Internal server error"}
+                content={
+                    "detail": "Internal server error",
+                    "error": str(e) if not isinstance(e, RuntimeError) else "Background task conflict"
+                }
             )
