@@ -29,25 +29,25 @@ services:
       - key: ADMIN_PASSWORD
         generateValue: true
 
-  # 2. Celery Worker (Background ML/Tasks)
-  - type: worker
-    name: memax-celery
-    env: docker
-    dockerfilePath: ./memax-ott/docker/celery.Dockerfile
-    dockerContext: ./memax-ott/backend
-    plan: free
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: memax-postgres
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: memax-redis
-          property: connectionString
-      - key: SECRET_KEY
-        generateValue: true
+#   # 2. Celery Worker (Background ML/Tasks)
+#   - type: worker
+#     name: memax-celery
+#     env: docker
+#     dockerfilePath: ./memax-ott/docker/celery.Dockerfile
+#     dockerContext: ./memax-ott/backend
+#     plan: free
+#     envVars:
+#       - key: DATABASE_URL
+#         fromDatabase:
+#           name: memax-postgres
+#           property: connectionString
+#       - key: REDIS_URL
+#         fromService:
+#           type: redis
+#           name: memax-redis
+#           property: connectionString
+#       - key: SECRET_KEY
+#         generateValue: true
 
   # 3. Next.js Frontend
   - type: web
