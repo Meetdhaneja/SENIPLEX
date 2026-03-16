@@ -104,10 +104,13 @@ def fetch_poster_safe(title: str):
 def seed_from_csv(db: Session, max_rows: int = 10000):
     """Load ALL movies from CSV into database with real posters for top subset"""
     # Check if we already have the full dataset
-    count = db.query(Movie).count()
-    if count >= 8000: 
-        logger.info(f"Database already has {count} movies. Skipping full reload.")
-        return
+    try:
+        count = db.query(Movie).count()
+        if count >= 8000: 
+            logger.info(f"Database already has {count} movies. Skipping full reload.")
+            return
+    except Exception:
+        logger.info("Database table not ready or empty. Starting fresh seeding.")
 
     if not os.path.exists(CSV_PATH):
         logger.warning(f"CSV not found at {CSV_PATH}")
@@ -117,7 +120,7 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
     
     # Process in batches to save memory
     BATCH_SIZE = 250
-    loaded = 0
+    total_loaded = 0
     existing_movies = set()
     
     try:
@@ -144,19 +147,19 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
             batch.append(row)
             
             if len(batch) >= BATCH_SIZE:
-                loaded += _process_batch(db, batch, existing_movies)
+                total_loaded += _process_batch(db, batch, existing_movies)
                 batch = []
-                logger.info(f"Progress: {loaded} movies seeded...")
+                logger.info(f"Progress: {total_loaded} movies seeded so far...")
         
         # Process final batch
         if batch:
-            loaded += _process_batch(db, batch, existing_movies)
+            total_loaded += _process_batch(db, batch, existing_movies)
 
-    logger.info(f"Full CSV Seeding complete! Total new entries loaded: {loaded}")
+    logger.info(f"Full CSV Seeding complete! Total new entries loaded in this run: {total_loaded}")
 
 def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
     """Helper to process a batch of CSV rows"""
-    loaded = 0
+    batch_loaded = 0
     # Fetch posters for this batch (smaller pool for Free Tier)
     titles = [r.get("title", "").strip() for r in batch_rows]
     poster_map = {}
@@ -169,6 +172,7 @@ def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
                 poster_map[title] = future.result()
             except Exception:
                 poster_map[title] = f"https://via.placeholder.com/300x450/1a1a2e/ffffff?text={title.replace(' ', '+')}"
+        
         for row in batch_rows:
             try:
                 title = row.get("title", "").strip()
@@ -178,10 +182,6 @@ def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
                 
                 # Fast duplicate check
                 if (title, release_year) in existing_movies:
-                    # IMPROVED: Still update thumbnail if it was NULL (e.g. from failed previous run)
-                    # We can't do this efficiently for all 8800 in a loop without queries,
-                    # but our repair script handles the bulk. 
-                    # For new CSV rows that match existing, we skip to save time.
                     continue
 
                 content_type = "TV Show" if row.get("type") == "TV Show" else "Movie"
@@ -196,7 +196,8 @@ def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
                     thumbnail_url = f"https://via.placeholder.com/400x600/111/eee?text={title[:15]}"
 
                 # Improved featured logic: Mark first 60 movies as featured to ensure Hero and Sections aren't empty
-                is_featured = (loaded < 60)
+                # Note: 'loaded' in the old logic was local to the function. We use a simpler heuristic here.
+                is_featured = (random.random() < 0.1) # 10% chance to be featured if new
                 
                 movie = Movie(
                     title=title,
@@ -227,17 +228,14 @@ def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
 
                 db.add(movie)
                 existing_movies.add((title, release_year)) # Track in memory too
-                loaded += 1
+                batch_loaded += 1
 
             except Exception as e:
                 logger.error(f"Failed to seed movie {title}: {str(e)}")
                 continue
         
         db.commit()
-        if loaded % 500 == 0:
-            logger.info(f"Progress: {loaded} movies seeded in this session.")
-
-    logger.info(f"Full CSV Seeding complete! Total new entries loaded: {loaded}")
+    return batch_loaded
 
 def run():
     db = SessionLocal()
