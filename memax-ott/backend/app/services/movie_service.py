@@ -18,6 +18,10 @@ def get_movies(
     content_type: Optional[str] = None
 ) -> Tuple[List[Movie], int]:
     """Get movies with pagination and filters"""
+    if db is None:
+        logger.warning("Database session is None in get_movies")
+        return [], 0
+        
     try:
         from sqlalchemy import inspect
         inspector = inspect(db.get_bind())
@@ -43,6 +47,7 @@ def get_movies(
 
 def get_movie_by_id(db: Session, movie_id: int) -> Optional[Movie]:
     """Get movie by ID"""
+    if db is None: return None
     try:
         return db.query(Movie).filter(Movie.id == movie_id).first()
     except Exception as e:
@@ -52,6 +57,7 @@ def get_movie_by_id(db: Session, movie_id: int) -> Optional[Movie]:
 
 def create_movie(db: Session, movie_data: MovieCreate) -> Movie:
     """Create new movie"""
+    if db is None: raise Exception("No database connection")
     movie = Movie(**movie_data.dict(exclude={"genre_ids", "country_ids"}))
     
     if movie_data.genre_ids:
@@ -70,6 +76,7 @@ def create_movie(db: Session, movie_data: MovieCreate) -> Movie:
 
 def update_movie(db: Session, movie_id: int, movie_data: MovieUpdate) -> Optional[Movie]:
     """Update movie"""
+    if db is None: return None
     movie = get_movie_by_id(db, movie_id)
     if not movie:
         return None
@@ -93,6 +100,7 @@ def update_movie(db: Session, movie_id: int, movie_data: MovieUpdate) -> Optiona
 
 def delete_movie(db: Session, movie_id: int) -> bool:
     """Delete movie"""
+    if db is None: return False
     movie = get_movie_by_id(db, movie_id)
     if not movie:
         return False
@@ -103,6 +111,7 @@ def delete_movie(db: Session, movie_id: int) -> bool:
 
 def search_movies(db: Session, query: str, limit: int = 20) -> List[Movie]:
     """Search movies"""
+    if db is None: return []
     try:
         search_filters = [Movie.title.ilike(f"%{query}%"), Movie.description.ilike(f"%{query}%")]
         # Check if model has cast/director fields before querying
@@ -119,18 +128,22 @@ def search_movies(db: Session, query: str, limit: int = 20) -> List[Movie]:
 
 def get_featured_movies(db: Session, limit: int = 10) -> List[Movie]:
     """Get featured movies with slight randomization"""
+    if db is None: return []
     try:
         from sqlalchemy import inspect
         inspector = inspect(db.get_bind())
         if not inspector.has_table("movies"):
             return []
-        return db.query(Movie).filter(Movie.is_featured == True).order_by(func.random()).all()[:limit]
+        # Return empty list if no featured movies yet
+        movies = db.query(Movie).filter(Movie.is_featured == True).order_by(func.random()).all()
+        return movies[:limit]
     except Exception as e:
         logger.error(f"Featured movies query failed: {str(e)}")
         return []
 
 def get_trending_movies(db: Session, limit: int = 10) -> List[Movie]:
     """Get trending movies"""
+    if db is None: return []
     try:
         from sqlalchemy import inspect
         inspector = inspect(db.get_bind())

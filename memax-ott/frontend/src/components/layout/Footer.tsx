@@ -24,9 +24,9 @@ const Footer = () => {
                     <div>
                         <h3 className="text-white font-bold mb-4">Connect</h3>
                         <ul className="space-y-2">
-                            <li><Link href="/facebook" className="hover:text-primary-400 transition-colors">Facebook</Link></li>
-                            <li><Link href="/twitter" className="hover:text-primary-400 transition-colors">Twitter</Link></li>
-                            <li><Link href="/instagram" className="hover:text-primary-400 transition-colors">Instagram</Link></li>
+                            <li><a href="#" className="hover:text-primary-400 transition-colors">Facebook</a></li>
+                            <li><a href="#" className="hover:text-primary-400 transition-colors">Twitter</a></li>
+                            <li><a href="#" className="hover:text-primary-400 transition-colors">Instagram</a></li>
                         </ul>
                     </div>
                     <div>
