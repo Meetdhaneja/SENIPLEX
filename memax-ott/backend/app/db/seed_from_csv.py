@@ -18,6 +18,10 @@ import movieposters as mp
 
 CSV_PATH = os.path.join(os.path.dirname(__file__), "../data/raw/Netflix_dataset_cleaned.csv")
 
+# Global caches to avoid redundant DB queries during massive seeding
+_GENRE_CACHE = {}
+_COUNTRY_CACHE = {}
+
 # Map Netflix genres to our genre names
 GENRE_MAP = {
     "action": "Action",
@@ -61,21 +65,32 @@ def map_rating(rating_str: str) -> float:
     return rating_map.get(rating_str.strip() if rating_str else "", 7.5)
 
 def get_or_create_genre(db: Session, name: str) -> Genre:
+    if name in _GENRE_CACHE:
+        return _GENRE_CACHE[name]
+    
     genre = db.query(Genre).filter(Genre.name == name).first()
     if not genre:
         genre = Genre(name=name)
         db.add(genre)
         db.flush()
+    
+    _GENRE_CACHE[name] = genre
     return genre
 
 def get_or_create_country(db: Session, name: str) -> Country:
     name = name.strip()
     if not name: return None
+    
+    if name in _COUNTRY_CACHE:
+        return _COUNTRY_CACHE[name]
+        
     country = db.query(Country).filter(Country.name == name).first()
     if not country:
         country = Country(name=name)
         db.add(country)
         db.flush()
+    
+    _COUNTRY_CACHE[name] = country
     return country
 
 def map_genres(db: Session, listed_in: str) -> list:
@@ -98,12 +113,23 @@ def fetch_poster_safe(title: str):
     except Exception:
         pass
     
+    # Stylized fallback for better appearance
     clean_title = title.replace(" ", "+")
-    return f"https://via.placeholder.com/300x450/1a1a2e/ffffff?text={clean_title}"
+    colors = ["1a1a2e", "16213e", "0f3460", "533483"]
+    color = random.choice(colors)
+    return f"https://via.placeholder.com/400x600/{color}/ffffff?text={clean_title}"
 
 def seed_from_csv(db: Session, max_rows: int = 10000):
-    """Load ALL movies from CSV into database with real posters for top subset"""
-    # Check if we already have the full dataset
+    """Load movies from CSV into database with high speed and low memory"""
+    # 1. Warm up caches
+    try:
+        for g in db.query(Genre).all(): _GENRE_CACHE[g.name] = g
+        for c in db.query(Country).all(): _COUNTRY_CACHE[c.name] = c
+        logger.info(f"Caches warmed: {len(_GENRE_CACHE)} genres, {len(_COUNTRY_CACHE)} countries.")
+    except Exception:
+        logger.warning("Caches couldn't be warmed. Proceeding.")
+
+    # 2. Check current count
     try:
         count = db.query(Movie).count()
         if count >= 8000: 
@@ -118,19 +144,18 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
 
     logger.info(f"Seeding FULL dataset from CSV (up to {max_rows} rows)...")
     
-    # Process in batches to save memory
-    BATCH_SIZE = 250
+    # 3. Stream processing
+    BATCH_SIZE = 200
     total_loaded = 0
     existing_movies = set()
     
     try:
-        # Pre-fetch existing (title, year) pairs to avoid duplicates
+        # Pre-fetch existing (title, year) pairs
         existing_movies = set(db.query(Movie.title, Movie.release_year).all())
-        logger.info(f"Already found {len(existing_movies)} movies in DB. Skipping duplicates.")
+        logger.info(f"Found {len(existing_movies)} existing movies. Processing only new entries.")
     except Exception:
-        logger.warning("Could not pre-fetch existing movies. Proceeding with caution.")
+        logger.warning("Could not pre-fetch existing movies. Proceeding row-by-row.")
 
-    # Process row by row
     with open(CSV_PATH, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         batch = []
@@ -147,94 +172,91 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
             batch.append(row)
             
             if len(batch) >= BATCH_SIZE:
-                total_loaded += _process_batch(db, batch, existing_movies)
+                # Only scrape posters for the first ~100 movies to avoid throttling
+                use_scraper = (total_loaded < 100)
+                total_loaded += _process_batch(db, batch, existing_movies, use_scraper)
                 batch = []
-                logger.info(f"Progress: {total_loaded} movies seeded so far...")
+                logger.info(f"Seeding Progress: {total_loaded} movies added...")
         
         # Process final batch
         if batch:
-            total_loaded += _process_batch(db, batch, existing_movies)
+            total_loaded += _process_batch(db, batch, existing_movies, (total_loaded < 100))
 
-    logger.info(f"Full CSV Seeding complete! Total new entries loaded in this run: {total_loaded}")
+    logger.info(f"Full CSV Seeding complete! Total new entries: {total_loaded}")
 
-def _process_batch(db: Session, batch_rows: list, existing_movies: set) -> int:
+def _process_batch(db: Session, batch_rows: list, existing_movies: set, use_scraper: bool) -> int:
     """Helper to process a batch of CSV rows"""
     batch_loaded = 0
-    # Fetch posters for this batch (smaller pool for Free Tier)
-    titles = [r.get("title", "").strip() for r in batch_rows]
     poster_map = {}
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_title = {executor.submit(fetch_poster_safe, t): t for t in titles if t}
-        for future in concurrent.futures.as_completed(future_to_title):
-            title = future_to_title[future]
-            try:
-                poster_map[title] = future.result()
-            except Exception:
-                poster_map[title] = f"https://via.placeholder.com/300x450/1a1a2e/ffffff?text={title.replace(' ', '+')}"
-        
-        for row in batch_rows:
-            try:
-                title = row.get("title", "").strip()
-                if not title: continue
+    if use_scraper:
+        # Concurrent scraping for first 100
+        titles = [r.get("title", "").strip() for r in batch_rows]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            future_to_title = {executor.submit(fetch_poster_safe, t): t for t in titles if t}
+            for future in concurrent.futures.as_completed(future_to_title):
+                title = future_to_title[future]
+                try:
+                    poster_map[title] = future.result()
+                except Exception:
+                    poster_map[title] = None
 
-                release_year = int(row.get("release_year")) if row.get("release_year", "").isdigit() else None
-                
-                # Fast duplicate check
-                if (title, release_year) in existing_movies:
-                    continue
-
-                content_type = "TV Show" if row.get("type") == "TV Show" else "Movie"
-                description = row.get("description", "").strip() or None
-                duration_minutes = parse_duration(row.get("duration", ""))
-                numeric_rating = map_rating(row.get("rating", ""))
-                
-                # Poster logic
-                if title in poster_map:
-                    thumbnail_url = poster_map[title]
-                else:
-                    thumbnail_url = f"https://via.placeholder.com/400x600/111/eee?text={title[:15]}"
-
-                # Improved featured logic: Mark first 60 movies as featured to ensure Hero and Sections aren't empty
-                # Note: 'loaded' in the old logic was local to the function. We use a simpler heuristic here.
-                is_featured = (random.random() < 0.1) # 10% chance to be featured if new
-                
-                movie = Movie(
-                    title=title,
-                    description=description,
-                    release_year=release_year,
-                    duration_minutes=duration_minutes,
-                    rating=round(numeric_rating, 1),
-                    imdb_rating=round(numeric_rating - 0.2, 1),
-                    age_rating=row.get("rating", "").strip() or None,
-                    date_added=row.get("date_added", "").strip() or None,
-                    content_type=content_type,
-                    director=row.get("director", "").strip() or None,
-                    cast=row.get("cast", "").strip() or None,
-                    thumbnail_url=thumbnail_url,
-                    is_featured=is_featured,
-                    is_active=True,
-                    view_count=random.randint(100, 500000),
-                )
-
-                movie.genres = map_genres(db, row.get("listed_in", ""))
-                
-                country_str = row.get("country", "").strip()
-                if country_str:
-                    country_name = country_str.split(",")[0].strip()
-                    country_obj = get_or_create_country(db, country_name)
-                    if country_obj:
-                        movie.countries = [country_obj]
-
-                db.add(movie)
-                existing_movies.add((title, release_year)) # Track in memory too
-                batch_loaded += 1
-
-            except Exception as e:
-                logger.error(f"Failed to seed movie {title}: {str(e)}")
+    for row in batch_rows:
+        try:
+            title = row.get("title", "").strip()
+            release_year = int(row.get("release_year")) if row.get("release_year", "").isdigit() else None
+            
+            # Final check to avoid race conditions with other threads
+            if (title, release_year) in existing_movies:
                 continue
-        
-        db.commit()
+
+            # Poster logic
+            thumbnail_url = poster_map.get(title)
+            if not thumbnail_url:
+                # Instant Placeholder
+                clean_title = title.replace(" ", "+")
+                color = random.choice(["1a1a2e", "0f3460", "533483"])
+                thumbnail_url = f"https://via.placeholder.com/400x600/{color}/ffffff?text={clean_title[:15]}"
+
+            # Featured Logic: mark first few as featured so Hero isn't empty
+            is_featured = (batch_loaded < 50) and (random.random() < 0.3)
+
+            movie = Movie(
+                title=title,
+                description=row.get("description", "").strip() or None,
+                release_year=release_year,
+                duration_minutes=parse_duration(row.get("duration", "")),
+                rating=round(map_rating(row.get("rating", "")), 1),
+                imdb_rating=round(map_rating(row.get("rating", "")) - 0.2, 1),
+                age_rating=row.get("rating", "").strip() or None,
+                date_added=row.get("date_added", "").strip() or None,
+                content_type="TV Show" if row.get("type") == "TV Show" else "Movie",
+                director=row.get("director", "").strip() or None,
+                cast=row.get("cast", "").strip() or None,
+                thumbnail_url=thumbnail_url,
+                is_featured=is_featured,
+                is_active=True,
+                view_count=random.randint(100, 500000),
+            )
+
+            movie.genres = map_genres(db, row.get("listed_in", ""))
+            
+            country_str = row.get("country", "").strip()
+            if country_str:
+                country_name = country_str.split(",")[0].strip()
+                country_obj = get_or_create_country(db, country_name)
+                if country_obj:
+                    movie.countries = [country_obj]
+
+            db.add(movie)
+            existing_movies.add((title, release_year))
+            batch_loaded += 1
+
+        except Exception as e:
+            logger.error(f"Failed row: {title} - {str(e)}")
+            continue
+    
+    db.commit()
     return batch_loaded
 
 def run():

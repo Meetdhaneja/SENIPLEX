@@ -36,7 +36,10 @@ def get_movies(
         total = query.count()
         movies = query.order_by(desc(Movie.release_year)).offset((page - 1) * page_size).limit(page_size).all()
         return movies, total
-    except Exception:
+    except Exception as e:
+        # Log the actual error for debugging
+        from loguru import logger
+        logger.error(f"Movie query failed: {str(e)}")
         # Fallback if table exists but query fails (e.g. during migration)
         return [], 0
 

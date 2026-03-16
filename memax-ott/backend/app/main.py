@@ -114,16 +114,19 @@ async def shutdown_event():
 
 @app.get("/api/health/db-status")
 async def db_status():
-    """Check database status and movie count with detailed error reporting"""
+    """Check database status and movie count with detailed progress reporting"""
     from app.db.session import SessionLocal
     from app.models.movie import Movie
     try:
         db = SessionLocal()
         try:
             count = db.query(Movie).count()
+            featured_count = db.query(Movie).filter(Movie.is_featured == True).count()
             return {
-                "movie_count": count, 
-                "status": "ok" if count > 0 else "seeding",
+                "movie_count": count,
+                "featured_count": featured_count,
+                "status": "ready" if count > 50 else "seeding",
+                "message": f"Currently have {count} movies partially loaded. Refresh in a moment." if count < 500 else "Library is being populated.",
                 "database_connected": True
             }
         except Exception as e:
@@ -139,7 +142,7 @@ async def db_status():
         logger.error(f"DB Status connection failed: {str(e)}")
         return {
             "status": "error", 
-            "message": f"Connection failed: {str(e)}",
+            "message": f"Connection failed: {str(e)}. Check DATABASE_URL protocol/SSL.",
             "database_connected": False
         }
 
