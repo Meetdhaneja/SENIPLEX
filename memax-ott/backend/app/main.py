@@ -80,33 +80,30 @@ app.include_router(admin_ui_routes.router, prefix="/admin", tags=["Admin UI"])
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize application on startup"""
+    """Initialize application on startup - Non-blocking for Render"""
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    logger.info(f"Environment: {settings.ENVIRONMENT}")
     
-    # 1. Initialize database tables SYNCHRONOUSLY
-    # This ensures tables exist before ANY request is handled
-    try:
-        init_db()
-        logger.info("Database schema initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to initialize database schema: {str(e)}")
-    
-    # 2. Run Seeding in background
-    # This ensures the server starts listening on the port IMMEDIATELY
     import threading
+    from app.db.init_db import init_db
     from app.db.seed import seed_database
     
-    def background_startup():
+    def async_startup_task():
+        """Background thread for DB ops so port 8000 opens immediately"""
         try:
-            # Seed database (8800+ movies takes time)
+            # 1. Initialize schema
+            logger.info("Background job: Initializing database schema...")
+            init_db()
+            
+            # 2. Seed data
+            logger.info("Background job: Starting database seeding...")
             seed_database()
-            logger.info("Database seeding completed in background")
+            logger.info("Background job: Database ready.")
         except Exception as e:
-            logger.error(f"Background seeding failed: {str(e)}")
+            logger.error(f"Background startup failed: {str(e)}")
 
-    threading.Thread(target=background_startup, daemon=True).start()
-    logger.info("Database seeding started in background thread")
+    # Start the thread and return immediately so uvicorn can bind the port
+    threading.Thread(target=async_startup_task, daemon=True).start()
+    logger.info("Startup sequence handed over to background thread. Port 8000 should open now.")
 
 
 @app.on_event("shutdown")
