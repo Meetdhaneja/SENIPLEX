@@ -25,9 +25,16 @@ class Settings(BaseSettings):
     def sync_database_url(self) -> str:
         # Render and other providers often use postgres:// instead of postgresql://
         # SQLAlchemy 2.0+ requires postgresql://
-        if self.DATABASE_URL.startswith("postgres://"):
-            return self.DATABASE_URL.replace("postgres://", "postgresql://", 1)
-        return self.DATABASE_URL
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        
+        # Managed databases like Render often require SSL
+        if "postgresql" in url and "sslmode" not in url:
+            separator = "&" if "?" in url else "?"
+            url = f"{url}{separator}sslmode=require"
+            
+        return url
         
     DB_ECHO: bool = False
     
