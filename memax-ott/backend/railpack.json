@@ -1,4 +1,5 @@
 {
   "name": "memax-backend",
-  "start": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --reload"
+  "install": "python -m pip install --upgrade pip setuptools wheel && pip install -r requirements.txt",
+  "start": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
 }
