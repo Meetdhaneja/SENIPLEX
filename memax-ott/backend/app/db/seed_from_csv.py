@@ -16,7 +16,12 @@ from app.models.country import Country
 from loguru import logger
 import movieposters as mp
 
-CSV_PATH = os.path.join(os.path.dirname(__file__), "../data/raw/Netflix_dataset_cleaned.csv")
+def get_default_csv_path() -> str:
+    # Support explicit override from environment (e.g. "C:\\Users\\Dell\\Downloads\\Netflix Datasets.csv")
+    override = os.getenv("NETFLIX_DATASET_CSV_PATH") or os.getenv("NETFLIX_CSV_PATH")
+    if override:
+        return override
+    return os.path.join(os.path.dirname(__file__), "../data/raw/Netflix_dataset_cleaned.csv")
 
 # Global caches to avoid redundant DB queries during massive seeding
 _GENRE_CACHE = {}
@@ -119,8 +124,11 @@ def fetch_poster_safe(title: str):
     color = random.choice(colors)
     return f"https://via.placeholder.com/400x600/{color}/ffffff?text={clean_title}"
 
-def seed_from_csv(db: Session, max_rows: int = 10000):
+def seed_from_csv(db: Session, max_rows: int = 10000, csv_path: str = None):
     """Load movies from CSV into database with high speed and low memory"""
+    if csv_path is None:
+        csv_path = get_default_csv_path()
+
     # 1. Warm up caches
     try:
         for g in db.query(Genre).all(): _GENRE_CACHE[g.name] = g
@@ -132,17 +140,17 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
     # 2. Check current count
     try:
         count = db.query(Movie).count()
-        if count >= 8000: 
+        if count >= 8000:
             logger.info(f"Database already has {count} movies. Skipping full reload.")
             return
     except Exception:
         logger.info("Database table not ready or empty. Starting fresh seeding.")
 
-    if not os.path.exists(CSV_PATH):
-        logger.warning(f"CSV not found at {CSV_PATH}")
+    if not os.path.exists(csv_path):
+        logger.warning(f"CSV not found at {csv_path}")
         return
 
-    logger.info(f"Seeding FULL dataset from CSV (up to {max_rows} rows)...")
+    logger.info(f"Seeding FULL dataset from CSV {csv_path} (up to {max_rows} rows)...")
     
     # 3. Stream processing
     BATCH_SIZE = 200
@@ -156,7 +164,7 @@ def seed_from_csv(db: Session, max_rows: int = 10000):
     except Exception:
         logger.warning("Could not pre-fetch existing movies. Proceeding row-by-row.")
 
-    with open(CSV_PATH, encoding="utf-8") as f:
+    with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         batch = []
         for i, row in enumerate(reader):
@@ -259,12 +267,18 @@ def _process_batch(db: Session, batch_rows: list, existing_movies: set, use_scra
     db.commit()
     return batch_loaded
 
-def run():
+def run(csv_path: str = None, max_rows: int = 10000):
     db = SessionLocal()
     try:
-        seed_from_csv(db)
+        seed_from_csv(db, max_rows=max_rows, csv_path=csv_path)
     finally:
         db.close()
 
 if __name__ == "__main__":
-    run()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Seed movies from a Netflix CSV dataset")
+    parser.add_argument("--csv", dest="csv_path", type=str, default=None, help="CSV file path to import")
+    parser.add_argument("--max", dest="max_rows", type=int, default=10000, help="Maximum number of rows to import")
+    args = parser.parse_args()
+    run(csv_path=args.csv_path, max_rows=args.max_rows)

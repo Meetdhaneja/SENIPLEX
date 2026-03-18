@@ -5,7 +5,7 @@ Builds and manages FAISS index for fast similarity search
 import faiss
 import numpy as np
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional, cast
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -24,20 +24,23 @@ class FAISSIndexBuilder:
         self.movie_ids: List[int] = []
         self.dimension = 384  # MiniLM embedding dimension
     
-    def build_index(self, db: Session = None) -> bool:
+    def build_index(self, db: Session | None = None) -> bool:
         """Build FAISS index from database embeddings"""
-        db = db or SessionLocal()
+        owns_session = db is None
+        db = SessionLocal() if db is None else db
         
         try:
             logger.info("Building FAISS index...")
             
             # Fetch all movie embeddings
-            embeddings_data = db.query(
-                MovieEmbedding.movie_id,
-                MovieEmbedding.content_embedding
-            ).join(Movie).filter(
-                Movie.is_active == True,
-                MovieEmbedding.content_embedding.isnot(None)
+            # `MovieEmbedding.content_embedding` is declared as a Python value type in the model
+            # for assignment convenience, which confuses static typing for SQLAlchemy expressions.
+            # Casting to `Any` keeps runtime behavior identical while satisfying type checking.
+            me = cast(Any, MovieEmbedding)
+            m = cast(Any, Movie)
+            embeddings_data = db.query(me.movie_id, me.content_embedding).join(m).filter(
+                m.is_active == True,
+                me.content_embedding.isnot(None),
             ).all()
             
             if not embeddings_data:
@@ -61,7 +64,8 @@ class FAISSIndexBuilder:
             faiss.normalize_L2(embeddings)
             
             # Add embeddings to index
-            self.index.add(embeddings)
+            # faiss' runtime binding accepts `add(x)` but type stubs may expect other signatures.
+            cast(Any, self.index).add(embeddings)
             
             logger.info(f"FAISS index built with {self.index.ntotal} vectors")
             
@@ -74,7 +78,7 @@ class FAISSIndexBuilder:
             logger.error(f"Error building FAISS index: {str(e)}")
             return False
         finally:
-            if db:
+            if owns_session:
                 db.close()
     
     def save_index(self) -> bool:
@@ -113,6 +117,7 @@ class FAISSIndexBuilder:
             if movie_ids_path.exists():
                 self.movie_ids = np.load(movie_ids_path).tolist()
             
+            assert self.index is not None
             logger.info(f"FAISS index loaded with {self.index.ntotal} vectors")
             return True
             
@@ -132,7 +137,7 @@ class FAISSIndexBuilder:
             faiss.normalize_L2(embedding)
             
             # Add to index
-            self.index.add(embedding)
+            cast(Any, self.index).add(embedding)
             self.movie_ids.append(movie_id)
             
             # Save updated index

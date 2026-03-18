@@ -1,0 +1,2 @@
+"""Seniplex backend application package."""
+

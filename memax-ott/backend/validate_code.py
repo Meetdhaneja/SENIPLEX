@@ -7,9 +7,24 @@ import sys
 from pathlib import Path
 
 
+def _configure_console_encoding() -> None:
+    """
+    Make console output robust on Windows where the default encoding may be cp1252.
+    This prevents UnicodeEncodeError when printing non-ASCII characters.
+    """
+    for stream in (getattr(sys, "stdout", None), getattr(sys, "stderr", None)):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                # Best-effort: don't fail validation due to console config
+                pass
+
+
 def check_imports():
     """Check for missing imports"""
-    print("🔍 Checking imports...")
+    print("Checking imports...")
     
     issues = []
     
@@ -30,14 +45,14 @@ def check_imports():
                 if 'np.' in content and 'import numpy' not in content:
                     issues.append(f"❌ {file_path}: Uses 'np.' but missing numpy import")
                 else:
-                    print(f"✅ {file_path}: Imports OK")
+                    print(f"OK: {file_path}: Imports")
     
     return issues
 
 
 def check_settings_usage():
     """Check for unsafe settings access"""
-    print("\n🔍 Checking settings usage...")
+    print("\nChecking settings usage...")
     
     issues = []
     
@@ -54,14 +69,14 @@ def check_settings_usage():
                 if 'settings.REDIS' in content and 'getattr' not in content:
                     issues.append(f"⚠️ {file_path}: Direct settings access (should use getattr)")
                 else:
-                    print(f"✅ {file_path}: Settings access OK")
+                    print(f"OK: {file_path}: Settings access")
     
     return issues
 
 
 def check_database_sessions():
     """Check for proper database session handling"""
-    print("\n🔍 Checking database sessions...")
+    print("\nChecking database sessions...")
     
     issues = []
     
@@ -78,7 +93,7 @@ def check_database_sessions():
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
                 if 'SessionLocal()' in content and 'db.close()' in content:
-                    print(f"✅ {file_path}: Session handling OK")
+                    print(f"OK: {file_path}: Session handling")
                 elif 'SessionLocal()' in content:
                     issues.append(f"⚠️ {file_path}: Creates session but may not close it")
     
@@ -87,7 +102,7 @@ def check_database_sessions():
 
 def check_none_handling():
     """Check for None handling"""
-    print("\n🔍 Checking None handling...")
+    print("\nChecking None handling...")
     
     issues = []
     
@@ -102,7 +117,7 @@ def check_none_handling():
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
                 if 'if not' in content or 'is None' in content:
-                    print(f"✅ {file_path}: None checks present")
+                    print(f"OK: {file_path}: None checks present")
                 else:
                     issues.append(f"⚠️ {file_path}: May need more None checks")
     
@@ -111,7 +126,7 @@ def check_none_handling():
 
 def check_exception_handling():
     """Check for exception handling"""
-    print("\n🔍 Checking exception handling...")
+    print("\nChecking exception handling...")
     
     issues = []
     
@@ -135,8 +150,9 @@ def check_exception_handling():
 
 def validate_code():
     """Run all validation checks"""
+    _configure_console_encoding()
     print("=" * 60)
-    print("🔍 CODE VALIDATION REPORT")
+    print("CODE VALIDATION REPORT")
     print("=" * 60)
     
     all_issues = []
@@ -149,17 +165,17 @@ def validate_code():
     
     # Print summary
     print("\n" + "=" * 60)
-    print("📊 VALIDATION SUMMARY")
+    print("VALIDATION SUMMARY")
     print("=" * 60)
     
     if not all_issues:
-        print("✅ All checks passed! Code is clean.")
+        print("All checks passed! Code is clean.")
         return 0
     else:
         print(f"⚠️ Found {len(all_issues)} potential issues:\n")
         for issue in all_issues:
             print(f"  {issue}")
-        print("\n💡 These are warnings, not critical errors.")
+        print("\nNote: These are warnings, not critical errors.")
         return len(all_issues)
 
 

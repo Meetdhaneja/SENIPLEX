@@ -1,4 +1,5 @@
 """Seed database with initial data"""
+import os
 from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.user import User
@@ -373,7 +374,8 @@ def seed_database():
         # seed_movies(db) # Removing hardcoded samples, using full CSV instead
         
         # Load ALL movies from Netflix CSV dataset (8800+ movies)
-        seed_from_csv(db, max_rows=9000)
+        csv_path = settings.NETFLIX_DATASET_CSV_PATH or os.getenv("NETFLIX_CSV_PATH") or None
+        seed_from_csv(db, max_rows=9000, csv_path=csv_path)
         logger.info("Database seeding completed")
     except Exception as e:
         logger.error(f"Error seeding database: {str(e)}")

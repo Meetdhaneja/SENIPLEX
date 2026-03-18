@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
     
+    # Data
+    NETFLIX_DATASET_CSV_PATH: str = ""
+    
     # JWT
     SECRET_KEY: str = "your-secret-key-change-this-in-production-min-32-chars"
     ALGORITHM: str = "HS256"
@@ -71,7 +74,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     
     class Config:
-        env_file = ".env"
+        env_file = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
         case_sensitive = False
 
 

@@ -1,0 +1,11 @@
+{
+  "include": ["memax-ott/backend", "seniplex-ott/backend"],
+  "extraPaths": [
+    "memax-ott/backend",
+    "memax-ott/backend/app",
+    "seniplex-ott/backend",
+    "seniplex-ott/backend/app"
+  ],
+  "reportMissingImports": "warning"
+}
+

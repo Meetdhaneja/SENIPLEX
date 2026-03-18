@@ -12,6 +12,16 @@ from app.models.movie import Movie
 from app.models.interaction import Interaction
 
 
+def popularity_score(
+    *,
+    view_score: float,
+    rating_score: float,
+    view_weight: float = 0.7,
+    rating_weight: float = 0.3,
+) -> float:
+    return view_weight * view_score + rating_weight * rating_score
+
+
 class PopularityModel:
     """Popularity-based recommendation model"""
     
@@ -75,8 +85,8 @@ class PopularityModel:
                 view_score = movie.view_count / max_views
                 rating_score = (movie.rating or 0) / max_rating
                 
-                popularity_score = 0.7 * view_score + 0.3 * rating_score
-                scores.append((movie.id, popularity_score))
+                score = popularity_score(view_score=view_score, rating_score=rating_score)
+                scores.append((movie.id, score))
             
             # Sort by score
             scores.sort(key=lambda x: x[1], reverse=True)

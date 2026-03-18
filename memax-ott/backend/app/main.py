@@ -9,6 +9,7 @@ from loguru import logger
 import sys
 import traceback
 import os
+import time
 
 from app.core.config import settings
 from app.core.middleware import LoggingMiddleware
@@ -27,23 +28,45 @@ logger.add(
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    debug=True, # Temporarily true to help user see errors
+    debug=True,
     docs_url="/api/docs",
     openapi_url="/api/openapi.json"
 )
 
-# Global Error Handler - Returns traceback to frontend for debugging
+# ─── ULTIMATE SAFETY MIDDLEWARE ──────────────────────────────────────────
+# This catches errors that occur EVEN BEFORE they reach our routes or 
+# exception handlers (like in other middlewares or pydantic validation).
+@app.middleware("http")
+async def ultimate_safety_middleware(request: Request, call_next):
+    try:
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    except Exception as e:
+        tb = traceback.format_exc()
+        logger.error(f"FATAL REQUEST ERROR: {request.url.path}\n{tb}")
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Fatal Backend Error",
+                "message": str(e),
+                "path": request.url.path,
+                "traceback": tb
+            }
+        )
+
+# Global Error Handler
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exc()
-    logger.error(f"CRASH: {request.url.path} - {str(exc)}\n{tb}")
+    logger.error(f"FastAPI Exception: {str(exc)}\n{tb}")
     return JSONResponse(
         status_code=500,
         content={
             "detail": "Internal Server Error",
             "message": str(exc),
-            "path": request.url.path,
-            "type": type(exc).__name__,
             "traceback": tb 
         }
     )
@@ -53,20 +76,11 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS if "*" not in settings.CORS_ORIGINS else [],
-    allow_origin_regex=".*",
+    allow_origins=["*"], # Extreme flexibility for debugging
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(LoggingMiddleware)
-
-# Mount static
-try:
-    if os.path.exists("memax-ott/backend/app/static") or os.path.exists("app/static"):
-        static_path = "app/static" if os.path.exists("app/static") else "memax-ott/backend/app/static"
-        app.mount("/static", StaticFiles(directory=static_path), name="static")
-except: pass
 
 # Include routers
 app.include_router(health_router, prefix="/api", tags=["Health"])
@@ -82,71 +96,24 @@ app.include_router(likes.router, prefix="/api/likes", tags=["Likes"])
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info(f"Startup: {settings.ENVIRONMENT}")
+    """Ultra-Lean Startup to prevent OOM on Render Free Tier"""
+    logger.info(f"App Starting in {settings.ENVIRONMENT} mode")
     
-    import threading
-    from app.db.init_db import init_db
-    from sqlalchemy import text
-    from app.db.session import engine
-    
-    def background_task():
-        try:
-            # 1. Init DB tables
-            logger.info("Initializing schema...")
-            init_db()
-            
-            # 2. Run migrations (ADD COLUMN IF NOT EXISTS)
-            logger.info("Checking for missing columns...")
-            migrations = [
-                ("age_rating", "VARCHAR(50)"),
-                ("date_added", "VARCHAR(100)"),
-                ("is_featured", "BOOLEAN DEFAULT FALSE"),
-                ("view_count", "INTEGER DEFAULT 0"),
-                ("rating", "FLOAT DEFAULT 0.0"),
-                ("imdb_rating", "FLOAT"),
-                ("thumbnail_url", "VARCHAR(500)"),
-                ("is_active", "BOOLEAN DEFAULT TRUE")
-            ]
-            
-            # engine.begin() automatically handles transaction commit/rollback
-            with engine.begin() as conn:
-                for col_name, col_type in migrations:
-                    try:
-                        # Use IF NOT EXISTS for absolute safety in Postgres
-                        conn.execute(text(f"ALTER TABLE movies ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
-                    except Exception as e:
-                        logger.warning(f"Column {col_name} migration note: {e}")
-            
-            logger.info("Database schema sync complete.")
-            
-            # 3. Seed only if empty and in development
-            if os.getenv("ENVIRONMENT") != "production":
-                from app.db.seed import seed_database
-                seed_database()
-        except Exception as e:
-            logger.error(f"Background startup thread error: {e}\n{traceback.format_exc()}")
+    # DO NOT RUN MIGRATIONS OR SEEDING AUTOMATICALLY ON STARTUP
+    # This prevents the initial RAM spike that causes Render kills.
+    # Seeding can be triggered manually via /api/admin/seed if needed.
+    logger.info("Automatic migrations and seeding DISABLED to conserve memory.")
 
-    threading.Thread(target=background_task, daemon=True).start()
-
-@app.get("/api/health/db-status")
-async def db_status():
-    from app.db.session import SessionLocal
-    from app.models.movie import Movie
-    db = SessionLocal()
-    try:
-        count = db.query(Movie).count()
-        return {"status": "ready", "count": count}
-    except Exception as e:
-        return {"status": "error", "message": str(e), "traceback": traceback.format_exc()}
-    finally:
-        db.close()
+@app.get("/api/ping")
+async def ping():
+    return {"status": "pong", "time": time.time(), "env": os.getenv("ENVIRONMENT")}
 
 @app.get("/")
 async def root():
     return {
         "status": "online", 
-        "service": settings.APP_NAME, 
-        "env": os.getenv("ENVIRONMENT", "unknown"),
-        "docs": "/api/docs",
-        "api_ready": True
+        "service": settings.APP_NAME,
+        "api_docs": "/api/docs",
+        "api_ping": "/api/ping",
+        "env": os.getenv("ENVIRONMENT")
     }

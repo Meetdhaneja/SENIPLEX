@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.movie import Movie
 from app.models.movie_embeddings import MovieEmbedding
-from app.ai.embeddings.minilm_model import generate_embedding
+from .minilm_model import encode_texts
 from loguru import logger
 
 
@@ -18,7 +18,7 @@ def build_movie_embeddings():
             # Create text representation
             # Check if exists
             movie_emb = db.query(MovieEmbedding).filter(MovieEmbedding.movie_id == movie.id).first()
-            if movie_emb and movie_emb.content_embedding:
+            if movie_emb is not None and movie_emb.content_embedding is not None:
                 logger.debug(f"Skipping movie {movie.id}: Embedding already exists")
                 continue
             
@@ -26,10 +26,9 @@ def build_movie_embeddings():
             text = f"{movie.title}. {movie.description or ''}. Genres: {', '.join([g.name for g in movie.genres])}"
 
             # Generate embedding
-            embedding = generate_embedding(text)
+            embedding = encode_texts(text)
             
             # Save or update
-            movie_emb = db.query(MovieEmbedding).filter(MovieEmbedding.movie_id == movie.id).first()
             if movie_emb:
                 movie_emb.content_embedding = embedding
             else:

@@ -7,6 +7,7 @@ import os
 
 from app.db.session import get_db
 from app.models.user import User
+from app.models.movie import Movie
 from app.schemas.movie_schema import MovieResponse, MovieListResponse, MovieCreate, MovieUpdate
 from app.services.movie_service import (
     get_movies, get_movie_by_id, create_movie, update_movie,
@@ -34,6 +35,12 @@ def list_movies(
         "page": page,
         "page_size": page_size
     }
+
+
+@router.get("/count")
+def get_movie_count(db: Session = Depends(get_db)):
+    """Get total number of movies in the database"""
+    return {"count": db.query(Movie).count()}
 
 
 @router.get("/featured", response_model=List[MovieResponse])

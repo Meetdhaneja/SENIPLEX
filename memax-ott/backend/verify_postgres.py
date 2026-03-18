@@ -6,19 +6,29 @@ Tests the database connection and displays status
 from app.db.session import engine, SessionLocal
 from app.core.config import settings
 from sqlalchemy import inspect, text
-from loguru import logger
 import sys
+
+def _configure_console_encoding() -> None:
+    # Windows consoles may default to cp1252; avoid UnicodeEncodeError in prints.
+    for stream in (getattr(sys, "stdout", None), getattr(sys, "stderr", None)):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except Exception:
+                pass
 
 def verify_connection():
     """Verify PostgreSQL connection and display status"""
+    _configure_console_encoding()
     
     print("=" * 60)
-    print("🔍 POSTGRESQL CONNECTION VERIFICATION")
+    print("POSTGRESQL CONNECTION VERIFICATION")
     print("=" * 60)
     print()
     
     # Test 1: Configuration
-    print("✅ Step 1: Configuration")
+    print("Step 1: Configuration")
     print(f"   Database: Netflix")
     print(f"   Host: localhost:5432")
     print(f"   App Name: {settings.APP_NAME}")
@@ -26,7 +36,7 @@ def verify_connection():
     print()
     
     # Test 2: Connection
-    print("✅ Step 2: Database Connection")
+    print("Step 2: Database Connection")
     try:
         connection = engine.connect()
         print("   ✓ Connection successful!")
@@ -37,7 +47,7 @@ def verify_connection():
     print()
     
     # Test 3: Tables
-    print("✅ Step 3: Database Tables")
+    print("Step 3: Database Tables")
     try:
         inspector = inspect(engine)
         tables = inspector.get_table_names()
@@ -53,19 +63,22 @@ def verify_connection():
     print()
     
     # Test 4: Query Test
-    print("✅ Step 4: Query Test")
+    print("Step 4: Query Test")
     try:
         db = SessionLocal()
         result = db.execute(text("SELECT 1 as test"))
         row = result.fetchone()
         db.close()
-        print(f"   ✓ Query executed successfully (result: {row[0]})")
+        if row is None:
+            print("   ✗ Query executed but returned no rows")
+        else:
+            print(f"   ✓ Query executed successfully (result: {row[0]})")
     except Exception as e:
         print(f"   ✗ Query failed: {str(e)}")
     print()
     
     # Test 5: Check existing data
-    print("✅ Step 5: Data Check")
+    print("Step 5: Data Check")
     try:
         db = SessionLocal()
         
@@ -90,7 +103,7 @@ def verify_connection():
     print()
     
     print("=" * 60)
-    print("🎉 POSTGRESQL CONNECTION VERIFIED!")
+    print("POSTGRESQL CONNECTION VERIFIED!")
     print("=" * 60)
     print()
     print("Next Steps:")
