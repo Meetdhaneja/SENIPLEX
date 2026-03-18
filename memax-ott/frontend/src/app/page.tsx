@@ -17,12 +17,38 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [recsLoading, setRecsLoading] = useState(false);
+  const [backendReachable, setBackendReachable] = useState(true);
+  const [backendCheckInProgress, setBackendCheckInProgress] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuthStore();
 
   // Hero Carousel State
   const [heroIndex, setHeroIndex] = useState(0);
   const heroIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+        if (!base) throw new Error("NEXT_PUBLIC_API_URL is not configured");
+
+        const res = await fetch(`${base}/api/ping`, { method: "GET" });
+        if (!res.ok) throw new Error(`Ping failed: ${res.status}`);
+
+        setBackendReachable(true);
+      } catch (err: any) {
+        console.warn("Backend health check failed", err);
+        setBackendReachable(false);
+        setError(
+          "Backend not reachable. Please verify NEXT_PUBLIC_API_URL and ensure the backend is running."
+        );
+      } finally {
+        setBackendCheckInProgress(false);
+      }
+    };
+
+    checkBackend();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -101,6 +127,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-dark-900 text-white overflow-x-hidden">
       <Navbar />
+
+      {/* Backend reachability warning */}
+      {!backendReachable && !backendCheckInProgress && (
+        <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-100 px-6 py-4 text-center">
+          <strong>Warning:</strong> Backend is not reachable at <span className="font-mono">{process.env.NEXT_PUBLIC_API_URL}</span>.
+          Please verify your deployment configuration.
+        </div>
+      )}
 
       {/* Hero Section - Cycles through AI Recommended or Trending */}
       <Hero 

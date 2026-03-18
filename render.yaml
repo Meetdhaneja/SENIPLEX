@@ -59,12 +59,10 @@ services:
     dockerContext: ./memax-ott/frontend
     plan: free
     envVars:
-      # Render dynamically replaces this with the backend's provided host
+      # The frontend runs in the browser, so it needs the public backend URL.
+      # Render services are reachable at <service-name>.onrender.com by default.
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: memax-backend
-          property: url
+        value: "https://memax-backend.onrender.com"
 
   # 4. Redis Cache
   - type: redis
